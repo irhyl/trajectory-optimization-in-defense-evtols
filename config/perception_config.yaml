@@ -1,0 +1,112 @@
+# Perception Layer Configuration
+
+coordinate_system:
+  working_crs: "EPSG:4326"
+  input_crs: "EPSG:4326"
+  vertical_datum: "WGS84"
+
+spatial:
+  base_resolution: 1.0  # meters
+  tile_size: 512
+  altitude_bands: [10, 100, 500]  # meters
+  mission_buffer: 1000.0  # meters
+
+processing:
+  interpolation:
+    method: "bilinear"
+    order: 3
+  gap_filling:
+    method: "interpolation"
+    max_gap_pixels: 10
+  smoothing:
+    method: "gaussian"
+    kernel_size: 3
+  quality_control:
+    min_confidence: 0.7
+    outlier_std_thresh: 3.0
+
+terrain:
+  slope:
+    max_acceptable: 0.5  # radians
+    compute_window: 3  # pixels
+  roughness:
+    window_size: 5  # pixels
+    threshold: 2.0  # meters
+  obstacles:
+    max_height: 500.0  # meters
+    min_height: 2.0  # meters
+
+urban:
+  buildings:
+    height_accuracy: 2.0  # meters
+    min_area: 10.0  # square meters
+  canyon:
+    max_urban_fraction: 0.7
+
+atmosphere:
+  wind:
+    base_speed: 7.0  # m/s
+    altitude_exponent: 0.25
+  turbulence:
+    intensity_fraction: 0.1
+    length_scale: 100.0  # meters
+  air_density:
+    sea_level: 1.225  # kg/m³
+    temperature_lapse: 0.0065  # K/m
+
+threats:
+  radar:
+    range: 50000.0  # meters
+    accuracy: 100.0  # meters
+    elevation_angle: 45.0  # degrees
+  patrols:
+    response_range: 30000.0  # meters
+    reaction_time: 60.0  # seconds
+  ew_zones:
+    high_threat: 0.7
+    medium_threat: 0.4
+
+fusion:
+  layers:
+    risk: [threat, terrain, wind]
+    feasibility: [obstacle, constraint]
+    energy_cost: [wind, terrain]
+  uncertainty:
+    method: "kalman"
+    process_noise: 0.1
+    measurement_noise: 0.05
+
+serving:
+  tiles:
+    precompute: true
+    cache_ttl: 3600  # seconds
+  api:
+    max_query_area: 100000.0  # square kilometers
+    timeout: 30.0  # seconds
+  cache:
+    enabled: true
+    type: "memory"
+    max_items: 1000
+
+governance:
+  versioning:
+    processing_version: "1.0"
+    track_changes: true
+    retention_days: 30
+  provenance:
+    record_source: true
+    record_processing: true
+  quality:
+    validation_enabled: true
+    confidence_threshold: 0.7
+
+formats:
+  preferred_crs: "EPSG:4326"
+  tile_format: "geotiff"
+  metadata_format: "json"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers: ["console", "file"]
+
