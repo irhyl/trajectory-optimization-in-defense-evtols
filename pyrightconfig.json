@@ -1,0 +1,26 @@
+{
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.11",
+  "include": [
+    "src",
+    "notebooks",
+    "tests",
+    "scripts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "htmlcov",
+    "build",
+    "dist"
+  ],
+  "extraPaths": [
+    "./src",
+    "./notebooks/../src"
+  ],
+  "pythonPath": "./src",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportPrivateUsage": "warning"
+}
