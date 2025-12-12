@@ -1,0 +1,12 @@
+[theme]
+primaryColor = "#2980b9"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8f9fa"
+textColor = "#222222"
+font = "sans serif"
+
+[server]
+headless = true
+
+[ui]
+hideTopBar = true
