@@ -1,0 +1,110 @@
+# eVTOL Trajectory Optimization System - Pinned Requirements
+# Research-Grade Python Environment for Reproducible Computational Results
+# 
+# Python Version: 3.11.x (required)
+# Last Updated: November 2025
+# Institution: Indian Institute of Science, Bangalore
+
+# Core Scientific Computing Stack
+numpy
+scipy
+pandas
+networkx
+
+# Geospatial & Spatial Analysis
+shapely
+pyproj
+rasterio
+Fiona
+
+# Configuration & Utilities
+pydantic
+pyyaml
+loguru
+click
+
+# Trajectory Optimization Engines
+deap
+# casadi (check compatibility with Python 3.13)
+pyomo
+# ipopt (check compatibility with Python 3.13)
+
+# Machine Learning & Scientific Computing
+scikit-learn
+scikit-spatial
+
+# Visualization & Interactive Components
+plotly
+folium
+matplotlib
+seaborn
+pydeck
+
+# Web Application Framework
+streamlit
+streamlit-folium
+streamlit-plotly-events
+
+# Data Science Ecosystem
+jupyter
+ipython
+ipywidgets
+jupyter-contrib-nbextensions
+
+# Testing & Validation
+pytest
+pytest-cov
+pytest-benchmark
+pytest-xdist
+
+# Code Quality & Linting
+black
+ruff
+isort
+mypy
+pylint
+bandit
+pre-commit
+
+# Documentation Generation
+sphinx
+sphinx-rtd-theme
+sphinx-autodoc-typehints
+myst-parser
+
+# Experiment Tracking & Monitoring
+wandb
+mlflow
+
+# Performance Optimization
+numba
+cython
+
+# Type Hints & Validation
+typing-extensions
+
+# Data Export & Reporting
+openpyxl
+python-docx
+reportlab
+
+# Sensor & Signal Processing
+filterpy
+
+# API & Web Services
+httpx
+fastapi
+uvicorn
+starlette
+pydantic-settings
+
+# Utilities & Helpers
+tqdm
+python-dotenv
+cryptography
+
+# Optional Machine Learning (Comment out if not needed)
+# tensorflow
+# torch
+# torchvision
+
