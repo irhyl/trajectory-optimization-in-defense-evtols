@@ -1,0 +1,100 @@
+name: Tests and Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+      
+      - name: Run tests with pytest
+        run: pytest tests/ -v --cov=src/evtol --cov-report=xml --cov-report=term-missing
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  linting:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+      
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install black ruff mypy pylint isort
+      
+      - name: Run Black formatter check
+        run: black --check src/ tests/ streamlit_app/
+        continue-on-error: true
+      
+      - name: Run Ruff linter
+        run: ruff check src/ tests/ streamlit_app/
+        continue-on-error: true
+      
+      - name: Run mypy type checker
+        run: mypy src/ --config-file=.mypy.ini
+        continue-on-error: true
+      
+      - name: Run isort import sorter
+        run: isort --check-only src/ tests/ streamlit_app/
+        continue-on-error: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+      
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint bandit radon
+      
+      - name: Run pylint
+        run: pylint src/ --rcfile=.pylintrc
+        continue-on-error: true
+      
+      - name: Run bandit security check
+        run: bandit -r src/ --format json --output bandit-report.json
+        continue-on-error: true
+      
+      - name: Run cyclomatic complexity analysis
+        run: radon cc -a src/
+        continue-on-error: true
