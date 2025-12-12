@@ -1,0 +1,71 @@
+# Ruff configuration for comprehensive linting
+# Updated: November 2025
+
+target-version = "py311"
+line-length = 100
+output-format = "text"
+
+[lint]
+# Enable all rule families with exclusions
+select = [
+    "E",      # Pycodestyle errors
+    "W",      # Pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # Ruff-specific rules
+]
+
+# Disable specific rules
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "W503",   # Line break before binary operator
+    "S101",   # Use of assert (allowed in tests)
+    "B008",   # Do not perform function calls in argument defaults
+    "N818",   # Exception name should be named with Error suffix
+]
+
+# Exclude patterns
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".github",
+    "docs/_build",
+]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["S101", "S102"]
+"examples/**/*.py" = ["E402"]
+
+[lint.isort]
+known-first-party = ["evtol"]
+known-third-party = ["numpy", "scipy", "pandas", "sklearn"]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["chr", "int"]
+
+[lint.flake8-type-checking]
+strict = true
+exempt-modules = ["typing"]
+
+[lint.pylint]
+max-args = 5
+max-branches = 12
+max-locals = 15
+max-returns = 6
+max-statements = 50
