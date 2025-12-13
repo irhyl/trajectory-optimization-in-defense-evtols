@@ -1,5 +1,0 @@
-payload_kg,altitude_max_m,speed_max_mps,climb_rate_mps,endurance_min,source
-0,5000,120.0,10.0,60.0,synthetic_payload_dependence
-200,4400,110.0,8.0,50.0,synthetic_payload_dependence
-400,3800,100.0,6.0,40.0,synthetic_payload_dependence
-600,3200,90.0,4.0,30.0,synthetic_payload_dependence
