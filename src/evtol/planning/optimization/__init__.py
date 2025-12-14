@@ -9,6 +9,7 @@ from .pareto import (
     weighted_sum_scalarization,
     tchebycheff_scalarization
 )
+from .nsga3 import NSGA3Optimizer
 
 __all__ = [
     "Solution",
@@ -16,6 +17,7 @@ __all__ = [
     "DiverseRouteSelector",
     "weighted_sum_scalarization",
     "tchebycheff_scalarization",
+    "NSGA3Optimizer",
 ]
 
 

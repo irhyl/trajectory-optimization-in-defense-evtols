@@ -1,6 +1,15 @@
-from .planner import RoutePlanner
-from .graph_router import GraphRoutePlanner
+"""Routing layer for path planning algorithms."""
 
-__all__ = ["RoutePlanner", "GraphRoutePlanner"]
+from .planner import AStarPlanner
+from .graph_router import GraphRoutePlanner
+from .theta_star import ThetaStar
+from .rrt_star import RRTStar
+
+__all__ = [
+    "AStarPlanner",
+    "GraphRoutePlanner",
+    "ThetaStar",
+    "RRTStar",
+]
 
 

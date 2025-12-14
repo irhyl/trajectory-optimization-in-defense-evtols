@@ -1,6 +1,5 @@
 """
 Vehicle Layer Package
-
 This package provides comprehensive vehicle dynamics and energy management
 for eVTOL aircraft simulation and optimization.
 
@@ -70,7 +69,11 @@ from .utils.data_loader import DataLoader
 from .integration.rk4_integrator import RK4Integrator
 
 # Serving
-from .serving.api import VehicleAPI
+try:
+    from .serving.api import VehicleAPI
+except ImportError:
+    # uvicorn not available, API not loaded
+    VehicleAPI = None
 
 # Version information
 __version__ = "1.0.0"
