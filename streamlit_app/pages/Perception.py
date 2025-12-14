@@ -108,31 +108,13 @@ with tabs[0]:
     """)
     fig = manager.get_terrain_3d_figure()
     if fig:
+        # Only apply global theme, not axis/colorbar/colorscale overrides
         fig.update_layout(
             template="simple_white",
-            margin=dict(l=10, r=10, t=30, b=10),
             font=dict(family="Roboto, sans-serif", size=14, color="#222"),
             paper_bgcolor="#f8f9fa", plot_bgcolor="#f8f9fa",
-            scene=dict(
-                xaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Longitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                yaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Latitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                zaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Elevation (m)", tickfont=dict(size=12)),
-                aspectmode="data"
-            ),
-            coloraxis_colorbar=dict(
-                title="Elevation (m)",
-                thickness=14,
-                len=0.5,
-                tickfont=dict(size=12),
-                bgcolor="#f8f9fa"
-            ),
+            margin=dict(l=10, r=10, t=30, b=10),
             transition=dict(duration=500, easing="cubic-in-out")
-        )
-        fig.update_traces(
-            colorscale=create_colorscale(COLOR_PALETTES["terrain"]),
-            showscale=True,
-            colorbar=dict(title="Elevation (m)", thickness=14, len=0.5, tickfont=dict(size=12)),
-            hovertemplate="<b>Lon</b>: %{x}<br><b>Lat</b>: %{y}<br><b>Elev</b>: %{z:.2f} m"
         )
         fig = add_reset_view_button(fig)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
@@ -151,44 +133,22 @@ with tabs[1]:
     *What it shows:* Wind speed at multiple altitudes (typically 10m, 100m, 500m). Each layer is a 2D heatmap, colored with a soft, continuous scale, showing wind speed intensity across the grid. Interactive: you can hover to see wind speed at any point.
     *Purpose:* To visualize how wind conditions change with altitude and location. Helps in planning energy-efficient and safe flight paths, as wind can affect both trajectory and energy consumption.
     """)
-    fig = manager.get_wind_3d_figure()
-    if fig:
-        fig.update_layout(
-            template="simple_white",
-            margin=dict(l=10, r=10, t=30, b=10),
-            font=dict(family="Roboto, sans-serif", size=14, color="#222"),
-            paper_bgcolor="#f8f9fa", plot_bgcolor="#f8f9fa",
-            scene=dict(
-                xaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Longitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                yaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Latitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                zaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Altitude (m)", tickfont=dict(size=12)),
-                aspectmode="data"
-            ),
-            coloraxis_colorbar=dict(
-                title="Wind Speed (m/s)",
-                thickness=14,
-                len=0.5,
-                tickfont=dict(size=12),
-                bgcolor="#f8f9fa"
-            ),
-            transition=dict(duration=500, easing="cubic-in-out")
+
+    # --- Combined Terrain + Wind Vectors Visualization ---
+    wind_model = getattr(manager, 'wind_model', None)
+    if wind_model:
+        altitudes = wind_model.altitude_bands
+        altitude_idx = st.slider(
+            "Select Altitude Band (m)",
+            min_value=0,
+            max_value=len(altitudes)-1,
+            value=1,
+            format="%d: %dm" % (1, int(altitudes[1])) if len(altitudes) > 1 else "%d: %dm",
+            key="wind_altitude_slider"
         )
-        fig.update_traces(
-            selector=dict(type='heatmap'),
-            colorscale=create_colorscale(COLOR_PALETTES["wind"]),
-            showscale=True,
-            colorbar=dict(title="Wind Speed (m/s)", thickness=14, len=0.5, tickfont=dict(size=12)),
-            hovertemplate="<b>Lon</b>: %{x}<br><b>Lat</b>: %{y}<br><b>Speed</b>: %{z:.2f} m/s"
-        )
-        fig.update_traces(
-            selector=dict(type='surface'),
-            colorscale=create_colorscale(COLOR_PALETTES["wind"]),
-            showscale=True,
-            colorbar=dict(title="Wind Speed (m/s)", thickness=14, len=0.5, tickfont=dict(size=12)),
-            hovertemplate="<b>Lon</b>: %{x}<br><b>Lat</b>: %{y}<br><b>Speed</b>: %{z:.2f} m/s"
-        )
-        fig = add_reset_view_button(fig)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        fig = manager.get_terrain_wind_3d_figure(altitude_idx=altitude_idx)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     df = data.get('wind')
     if df is not None and not df.empty:
