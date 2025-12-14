@@ -4,8 +4,7 @@ import json
 import sys
 from io import StringIO
 
-from planning_layer.cli import run
-
+from evtol.planning.cli import run
 
 def test_cli_straight_runs_and_outputs_json(monkeypatch):
     argv = [
