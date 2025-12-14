@@ -67,17 +67,68 @@ class PerceptionConfig:
 
 
 class PerceptionManager:
-    """
-    Manages perception layer models and provides data for the Streamlit UI.
-    
-    This class wraps the real perception models and provides:
-    - Model initialization with configurable parameters
-    - Data generation for visualization
-    - Export functionality
-    - Session state caching
-    """
-    
-    def __init__(self, config: Optional[PerceptionConfig] = None):
+        def get_terrain_wind_3d_figure(self, altitude_idx: int = 1, n_vectors: int = 15):
+            """Return a Plotly figure with terrain surface and wind cones at selected altitude."""
+            if not (self._terrain_model and self._wind_model):
+                return None
+            try:
+                import plotly.graph_objects as go
+                elevation = self._terrain_model.elevation
+                ny, nx = elevation.shape
+                x = np.arange(nx)
+                y = np.arange(ny)
+                # Terrain surface
+                surface = go.Surface(
+                    z=elevation,
+                    x=x,
+                    y=y,
+                    colorscale='Earth',
+                    showscale=False,
+                    opacity=0.85,
+                    name='Terrain'
+                )
+                # Wind cones (subsample for clarity)
+                u = self._wind_model.wind_u[altitude_idx]
+                v = self._wind_model.wind_v[altitude_idx]
+                w = np.zeros_like(u)  # Assume horizontal wind only
+                step = max(1, nx // n_vectors)
+                xg, yg = np.meshgrid(x, y)
+                cone = go.Cone(
+                    x=xg[::step, ::step].flatten(),
+                    y=yg[::step, ::step].flatten(),
+                    z=(elevation[::step, ::step]).flatten(),
+                    u=u[::step, ::step].flatten(),
+                    v=v[::step, ::step].flatten(),
+                    w=w[::step, ::step].flatten(),
+                    sizemode="absolute",
+                    sizeref=2,
+                    anchor="tail",
+                    colorscale='Blues',
+                    showscale=False,
+                    name='Wind Vectors',
+                    opacity=0.7
+                )
+                fig = go.Figure(data=[surface, cone])
+                fig.update_layout(
+                    scene=dict(
+                        xaxis_title='Longitude Index',
+                        yaxis_title='Latitude Index',
+                        zaxis_title='Elevation (m)',
+                        aspectmode='cube',
+                    ),
+                    margin=dict(l=10, r=10, t=30, b=10),
+                    paper_bgcolor='#f8f9fa',
+                    plot_bgcolor='#f8f9fa',
+                    font=dict(family="Roboto, sans-serif", size=14, color="#222"),
+                    showlegend=False,
+                    title=f"Terrain and Wind Vectors at {int(self._wind_model.altitude_bands[altitude_idx])}m"
+                )
+                return fig
+            except Exception as e:
+                import streamlit as st
+                st.warning(f"Could not create combined terrain/wind plot: {e}")
+                return None
+    # ...existing code...
         """Initialize perception manager with configuration."""
         self.config = config or PerceptionConfig()
         
