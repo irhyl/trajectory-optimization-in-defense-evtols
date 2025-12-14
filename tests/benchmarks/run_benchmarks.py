@@ -258,7 +258,7 @@ if __name__ == "__main__":
     runner.run_all_benchmarks()
     runner.generate_report()
     
-    print("\n✅ Benchmark suite completed!")
+    print("\nBenchmark suite completed!")
     print("View results in: benchmarks/results/")
     print("View MLflow dashboard: mlflow ui --backend-store-uri file:./mlruns")
 
