@@ -1,0 +1,80 @@
+/* Custom CSS for Optax-style minimalism */
+
+/* Main content area */
+section.main > div {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem 2rem 2.5rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    color: #222;
+    font-weight: 700;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Sidebar */
+.css-1d391kg, .stSidebar {
+    background: #f8f9fa !important;
+    border-right: 1px solid #e1e4e5;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background: #fff;
+}
+td, th {
+    border: 1px solid #e1e4e5;
+    padding: 0.5rem 1rem;
+}
+tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+/* Code blocks */
+code, pre {
+    background: #f4f4f4;
+    color: #222;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: 'Fira Mono', 'Consolas', monospace;
+    font-size: 95%;
+}
+pre {
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+/* Links */
+a {
+    color: #2980b9;
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+/* Remove Streamlit default shadows and borders */
+.stApp {
+    box-shadow: none !important;
+}
+
+/* Section separation */
+hr {
+    border: none;
+    border-top: 1px solid #e1e4e5;
+    margin: 2rem 0;
+}
+
+/* Remove emoji and tab styles (if any remain) */
+.stTabs, .st-emotion-cache-1gulkj5 {
+    display: none !important;
+}
