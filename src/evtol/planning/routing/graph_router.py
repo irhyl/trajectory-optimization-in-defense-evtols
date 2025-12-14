@@ -8,7 +8,7 @@ import networkx as nx
 
 from ..config import PlanningConfig
 from ..serving.perception_client import PerceptionClient, PerceptionQuery
-from .planner import Waypoint
+from ..base import Waypoint, RoutePlanner
 
 
 @dataclass
