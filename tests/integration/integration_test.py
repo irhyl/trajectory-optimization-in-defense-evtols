@@ -58,11 +58,11 @@ def test_perception_layer():
         assert "avg_risk" in segment, "Segment should contain average risk"
         assert "energy_kwh_per_km" in segment, "Segment should contain energy cost"
         
-        logger.info("✅ Perception Layer tests passed")
+        logger.info("PASSED: Perception Layer tests passed")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Perception Layer test failed: {e}")
+        logger.error(f"FAILED: Perception Layer test failed: {e}")
         return False
 
 
@@ -104,11 +104,11 @@ def test_planning_layer():
         logger.info(f"Mission created with keys: {list(mission.keys())}")
         assert isinstance(mission, dict), "Mission should be a dictionary"
         
-        logger.info("✅ Planning Layer tests passed")
+        logger.info("PASSED: Planning Layer tests passed")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Planning Layer test failed: {e}")
+        logger.error(f"FAILED: Planning Layer test failed: {e}")
         return False
 
 
@@ -206,11 +206,11 @@ def test_vehicle_layer():
         logger.info(f"Battery SOC: {soc:.2f}")
         assert 0 <= soc <= 1, "SOC should be between 0 and 1"
         
-        logger.info("✅ Vehicle Layer tests passed")
+        logger.info("PASSED: Vehicle Layer tests passed")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Vehicle Layer test failed: {e}")
+        logger.error(f"FAILED: Vehicle Layer test failed: {e}")
         return False
 
 
@@ -345,19 +345,19 @@ def test_layer_integration():
         logger.info("Testing data flow between layers...")
         
         # 1. Perception → Planning
-        logger.info("✅ Perception → Planning: Route planning with risk/energy data")
+        logger.info("PASSED: Perception → Planning: Route planning with risk/energy data")
         
         # 2. Planning → Vehicle
-        logger.info("✅ Planning → Vehicle: Route waypoints used for vehicle simulation")
+        logger.info("PASSED: Planning → Vehicle: Route waypoints used for vehicle simulation")
         
         # 3. Vehicle → Planning (feedback)
-        logger.info("✅ Vehicle → Planning: Energy consumption feedback")
+        logger.info("PASSED: Vehicle → Planning: Energy consumption feedback")
         
-        logger.info("✅ Layer Integration tests passed")
+        logger.info("PASSED: Layer Integration tests passed")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Layer Integration test failed: {e}")
+        logger.error(f"FAILED: Layer Integration test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -401,11 +401,11 @@ def test_control_layer():
         logger.info(f"Generated trajectory: {len(trajectory)} points")
         assert len(trajectory) > 0, "Trajectory should have points"
         
-        logger.info("✅ Control Layer tests passed")
+        logger.info("PASSED: Control Layer tests passed")
         return True
         
     except Exception as e:
-        logger.error(f"❌ Control Layer test failed: {e}")
+        logger.error(f"FAILED: Control Layer test failed: {e}")
         return False
 
 
@@ -437,7 +437,7 @@ def main():
     total = len(results)
     
     for test_name, result in results:
-        status = "✅ PASSED" if result else "❌ FAILED"
+        status = "PASSED" if result else "FAILED"
         logger.info(f"  {test_name:30s}: {status}")
         if result:
             passed += 1
@@ -451,7 +451,7 @@ def main():
         logger.info("The complete eVTOL system is operational.")
         return 0
     else:
-        logger.error(f"\n❌ FAILURE: {total-passed} test(s) failed.")
+        logger.error(f"\nFAILURE: {total-passed} test(s) failed.")
         logger.error("Check logs above for details.")
         return 1
 
