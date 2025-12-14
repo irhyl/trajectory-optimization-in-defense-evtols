@@ -2,150 +2,123 @@
 Perception and Environment Layer for eVTOL Trajectory Optimization
 
 This package provides spatiotemporal maps for eVTOL planning including:
-- Terrain and obstacle data
-- Atmospheric conditions (wind, turbulence, air density)
-- Threat and risk assessment
-- Data fusion and uncertainty quantification
+- Terrain and obstacle data (terrain_model, obstacle_model)
+- Atmospheric conditions (wind_model)
+- Threat and risk assessment (threat_model)
+- Data fusion and uncertainty quantification (fusion_model)
 
-The layer produces accurate, versioned, georeferenced, uncertainty-aware,
-and fast-to-query maps for the planner.
+The layer produces accurate, versioned, georeferenced, and fast-to-query
+maps for the planner via the FusedIntelligenceModel interface.
 """
 
-__version__ = "1.0.0"
-__author__ = "eVTOL Perception Team"
-__email__ = "perception@evtol-defense.com"
+# Import production perception modules
+from .terrain_model import TerrainElevationMap, TerrainMetadata
+from .wind_model import WindFieldModel, WindMetadata
+from .threat_model import ThreatAssessmentModel
+from .obstacle_model import ObstacleDetectionModel, LandingZone
+from .fusion_model import FusedIntelligenceModel, FusionMetadata
 
-# Import main components for easy access
-from .utils.config import Config
-from .utils.logging import setup_logging
-
-# Import processing components
-from .processing import (
-    # Data ingestion
-    load_raster_data,
-    load_vector_data,
-    load_netcdf_data,
-    load_point_cloud_data,
-    batch_load_data,
-    get_data_info,
-    # Data transformation
-    reproject_raster,
-    reproject_vector,
-    resample_raster,
-    clip_to_bounds,
-    normalize_data,
-    apply_transformation_pipeline,
-    # Data fusion
-    fuse_raster_layers,
-    fuse_vector_layers,
-    combine_datasets,
-    create_unified_dataset,
-    # Quality control
-    perform_quality_checks,
-    validate_processing_results,
-    generate_quality_report,
-    # Output generation
-    generate_planner_outputs,
-    create_tiled_outputs,
-    export_to_formats
+# Import visualization modules
+from .terrain_visualization import (
+    plot_terrain_2d_matplotlib,
+    plot_terrain_3d_plotly,
+    plot_terrain_statistics,
+    plot_cross_section
+)
+from .wind_visualization import (
+    plot_wind_vector_field_matplotlib,
+    plot_wind_profile_matplotlib,
+    plot_wind_3d_layers_plotly,
+    plot_wind_shear_matplotlib,
+    plot_energy_cost_map_matplotlib
+)
+from .threat_visualization import (
+    plot_threat_heatmap_matplotlib,
+    plot_sam_coverage_matplotlib,
+    plot_safe_corridors_matplotlib,
+    plot_threat_statistics_matplotlib,
+    plot_threat_3d_altitude_analysis_plotly
+)
+from .obstacle_visualization import (
+    plot_building_detection_matplotlib,
+    plot_landing_zones_matplotlib,
+    plot_clearance_profile_matplotlib,
+    plot_obstacle_statistics_matplotlib
+)
+from .fusion_visualization import (
+    plot_fused_risk_map_matplotlib,
+    plot_feasibility_and_risk_matplotlib,
+    plot_energy_cost_map_matplotlib as plot_fusion_energy_cost_map_matplotlib,
+    plot_component_contribution_matplotlib,
+    plot_fused_statistics_matplotlib,
+    plot_fused_3d_heatmap_plotly,
+    plot_comparison_before_after_fusion
 )
 
-# Import geometry components
-from .geometry import (
-    # Terrain analysis
-    compute_slope,
-    compute_aspect,
-    compute_curvature,
-    compute_roughness,
-    compute_terrain_features,
-    TerrainAnalysisError,
-    # Clearance analysis
-    compute_clearance,
-    compute_obstacle_height,
-    compute_landing_zones,
-    compute_corridor_clearance,
-    ClearanceAnalysisError,
-    # Obstacle detection
-    detect_obstacles,
-    classify_obstacles,
-    compute_obstacle_mask,
-    filter_obstacles_by_height,
-    ObstacleDetectionError,
-    # Landing analysis
-    analyze_landing_feasibility,
-    compute_landing_scores,
-    find_optimal_landing_sites,
-    validate_landing_zones,
-    LandingAnalysisError
-)
-
-# Main classes for users
+# Public API - Production modules
 __all__ = [
-    "Config",
-    "setup_logging",
-    # Data ingestion
-    "load_raster_data",
-    "load_vector_data", 
-    "load_netcdf_data",
-    "load_point_cloud_data",
-    "batch_load_data",
-    "get_data_info",
-    # Data transformation
-    "reproject_raster",
-    "reproject_vector",
-    "resample_raster",
-    "clip_to_bounds",
-    "normalize_data",
-    "apply_transformation_pipeline",
-    # Data fusion
-    "fuse_raster_layers",
-    "fuse_vector_layers",
-    "combine_datasets",
-    "create_unified_dataset",
-    # Quality control
-    "perform_quality_checks",
-    "validate_processing_results",
-    "generate_quality_report",
-    # Output generation
-    "generate_planner_outputs",
-    "create_tiled_outputs",
-    "export_to_formats",
-    # Terrain analysis
-    "compute_slope",
-    "compute_aspect",
-    "compute_curvature",
-    "compute_roughness",
-    "compute_terrain_features",
-    "TerrainAnalysisError",
-    # Clearance analysis
-    "compute_clearance",
-    "compute_obstacle_height",
-    "compute_landing_zones",
-    "compute_corridor_clearance",
-    "ClearanceAnalysisError",
-    # Obstacle detection
-    "detect_obstacles",
-    "classify_obstacles",
-    "compute_obstacle_mask",
-    "filter_obstacles_by_height",
-    "ObstacleDetectionError",
-    # Landing analysis
-    "analyze_landing_feasibility",
-    "compute_landing_scores",
-    "find_optimal_landing_sites",
-    "validate_landing_zones",
-    "LandingAnalysisError"
+    # Core models
+    "TerrainElevationMap",
+    "WindFieldModel",
+    "ThreatAssessmentModel",
+    "ObstacleDetectionModel",
+    "FusedIntelligenceModel",
+    # Metadata
+    "TerrainMetadata",
+    "WindMetadata",
+    "FusionMetadata",
+    # Terrain visualization
+    "plot_terrain_2d_matplotlib",
+    "plot_terrain_3d_plotly",
+    "plot_terrain_statistics",
+    "plot_cross_section",
+    # Wind visualization
+    "plot_wind_vector_field_matplotlib",
+    "plot_wind_profile_matplotlib",
+    "plot_wind_3d_layers_plotly",
+    "plot_wind_shear_matplotlib",
+    "plot_energy_cost_map_matplotlib",
+    # Threat visualization
+    "plot_threat_heatmap_matplotlib",
+    "plot_sam_coverage_matplotlib",
+    "plot_safe_corridors_matplotlib",
+    "plot_threat_statistics_matplotlib",
+    "plot_threat_3d_altitude_analysis_plotly",
+    # Obstacle visualization
+    "plot_building_detection_matplotlib",
+    "plot_landing_zones_matplotlib",
+    "plot_clearance_profile_matplotlib",
+    "plot_obstacle_statistics_matplotlib",
+    # Fusion visualization
+    "plot_fused_risk_map_matplotlib",
+    "plot_feasibility_and_risk_matplotlib",
+    "plot_fusion_energy_cost_map_matplotlib",
+    "plot_component_contribution_matplotlib",
+    "plot_fused_statistics_matplotlib",
+    "plot_fused_3d_heatmap_plotly",
+    "plot_comparison_before_after_fusion",
+    # Data structures
+    "LandingZone"
 ]
-
-# Configuration management
-def load_config(config_path: str = None) -> Config:
-    """Load configuration from YAML file."""
-    return Config(config_path)
 
 # Quick setup function
 def setup_perception_layer(config_path: str = None, log_level: str = "INFO"):
     """Quick setup of the perception layer with logging."""
-    config = load_config(config_path)
-    logger = setup_logging(config.logging, log_level)
+    from .utils.config import Config
+    import logging
+    
+    # Load configuration
+    config = Config(config_path)
+    
+    # Setup logging
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    
     return config, logger
 
