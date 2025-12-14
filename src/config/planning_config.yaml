@@ -26,3 +26,11 @@ perception:
     energy_cost_kwh_per_km: 0.8
     risk_score: 0.2
 
+output:
+  # Default output directory for mission results
+  directory: "./outputs/mission-results"
+  # Auto-include timestamp in filenames
+  include_timestamp: true
+  # Default format: json, csv, or both
+  default_format: "json"
+
