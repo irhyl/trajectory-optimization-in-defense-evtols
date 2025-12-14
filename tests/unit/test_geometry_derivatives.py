@@ -273,7 +273,7 @@ def main():
         if passed == total:
             logger.info("🎉 All geometry derivatives tests passed!")
         else:
-            logger.error(f"❌ {total - passed} tests failed")
+            logger.error(f"FAILED: {total - passed} tests failed")
         
         return passed == total
 
