@@ -1,0 +1,6 @@
+Mission_Type,Primary_Objective,Secondary_Objective,Best_Algorithm,Recommended_Profile,Rationale
+Intelligence/Surveillance (ISR),Time,Risk,A*,Time-Optimized,"Fast planning for ISR timing, threat avoidance secondary"
+Close Air Support (CAS),Risk,Time,Theta*,Risk-Optimized,"Smooth paths minimize detection signature, speed critical"
+Strategic Transport,Energy,Risk,Dijkstra,Energy-Optimized,"Long range requires fuel efficiency, guaranteed optimal"
+Complex Environment (NFZ),Risk,Energy,RRT*,Risk-Optimized,Handles complex no-fly zones and non-convex obstacles
+General Purpose,Balanced,Balanced,A*,Balanced,Fast and practical for most operational scenarios
