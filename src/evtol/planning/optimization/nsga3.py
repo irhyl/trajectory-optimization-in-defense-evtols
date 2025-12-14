@@ -10,6 +10,7 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 import logging
 from .pareto import Solution, ParetoFrontier
+from ..base import Optimizer, RoutePlan
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class ReferencePoint:
     associated_solutions: List[int]
 
 
-class NSGA3Optimizer:
+class NSGA3Optimizer(Optimizer):
     """
     NSGA-III optimizer for many-objective eVTOL trajectory optimization.
     
@@ -77,57 +78,86 @@ class NSGA3Optimizer:
         
         logger.info(f"Initialized NSGA-III with {len(objectives)} objectives")
     
-    def optimize(self, initial_population: Optional[List[Solution]] = None) -> List[Solution]:
-        """
-        Run NSGA-III optimization.
-        
-        Args:
-            initial_population: Optional initial population
-            
-        Returns:
-            Pareto-optimal solutions
-        """
+    def _run_evolution(self, initial_population: Optional[List[Solution]] = None) -> List[Solution]:
+        """Run the internal NSGA-III evolution loop on a population of Solution objects."""
         # Initialize population
         if initial_population is None:
             self.population = self._generate_initial_population()
         else:
             self.population = initial_population
-        
+
         logger.info(f"Starting NSGA-III optimization for {self.max_generations} generations")
-        
+
         for generation in range(self.max_generations):
             self.generation = generation
-            
+
             # Evaluate objectives
             self._evaluate_population()
-            
+
             # Non-dominated sorting
             fronts = self._non_dominated_sorting()
-            
+
             # Environmental selection
             self.population = self._environmental_selection(fronts)
-            
+
             # Generate offspring
             offspring = self._generate_offspring()
-            
+
             # Combine parent and offspring
             combined_population = self.population + offspring
-            
+
             # Select next generation
             self.population = self._select_next_generation(combined_population)
-            
+
             # Track convergence
             self._update_convergence_metrics()
-            
+
             # Log progress
             if generation % 100 == 0:
                 logger.info(f"Generation {generation}: {len(self.population)} solutions")
-        
+
         # Final selection
         self.best_solutions = self._get_pareto_optimal_solutions()
-        
+
         logger.info(f"Optimization completed. Found {len(self.best_solutions)} Pareto-optimal solutions")
         return self.best_solutions
+    
+    def optimize(self, candidates: List[RoutePlan], objectives: Dict[str, float], constraints: Optional[Dict] = None) -> List[RoutePlan]:
+        """Adapter method to run NSGA-III on a list of RoutePlan candidates.
+
+        Converts RoutePlan objects to internal Solution objects, runs the NSGA-III
+        evolution, and maps selected Solutions back to RoutePlan instances.
+        """
+        # Convert RoutePlan candidates to Solution objects
+        solutions: List[Solution] = []
+        for idx, route in enumerate(candidates):
+            obj_map = {}
+            # map common objective names to route attributes
+            for obj in self.objectives:
+                if obj == "distance":
+                    obj_map[obj] = float(route.distance_km)
+                elif obj == "energy":
+                    obj_map[obj] = float(route.energy_kwh)
+                elif obj == "risk":
+                    obj_map[obj] = float(route.risk_score)
+                elif obj == "time":
+                    obj_map[obj] = float(route.flight_time_s)
+                else:
+                    # fallback to metadata
+                    obj_map[obj] = float(route.metadata.get(obj, 0.0)) if route.metadata else 0.0
+
+            solutions.append(Solution(route_id=idx, objectives=obj_map, metadata=(route.metadata or {}).copy()))
+
+        # Run the evolution on the Solution objects
+        pareto_solutions = self._run_evolution(initial_population=solutions)
+
+        # Map selected solutions back to RoutePlan objects using route_id
+        selected_routes: List[RoutePlan] = []
+        for sol in pareto_solutions:
+            if 0 <= sol.route_id < len(candidates):
+                selected_routes.append(candidates[sol.route_id])
+
+        return selected_routes
     
     def _generate_reference_points(self) -> List[ReferencePoint]:
         """Generate reference points using Das and Dennis method."""
