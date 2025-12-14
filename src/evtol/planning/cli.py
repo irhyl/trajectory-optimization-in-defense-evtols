@@ -6,8 +6,10 @@ import sys
 from typing import List
 
 from . import PlanningConfig, setup_planning_layer
-from .routing.planner import RoutePlanner, Waypoint
-from .routing.graph_router import GraphRoutePlanner, GridBounds
+from .base import Waypoint
+from .routing import AStarPlanner, GraphRoutePlanner
+from .routing.graph_router import GridBounds
+from .serving.output_manager import OutputManager
 
 
 def _waypoints_to_dict(route: List[Waypoint]) -> List[dict]:
@@ -26,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--alt_m", type=float, default=120.0)
     p.add_argument("--time_iso", type=str, default="2024-01-01T12:00:00")
     p.add_argument("--config", type=str, default=None, help="Path to planning_config.yaml")
+    p.add_argument("--output", type=str, default=None, help="Output directory for results (default: from config)")
+    p.add_argument("--format", type=str, default="json", choices=["csv", "json", "both"], 
+                   help="Output format (default: json)")
+    p.add_argument("--save", action="store_true", help="Save results to file (else prints to stdout)")
 
     sub = p.add_subparsers(dest="mode", required=False)
 
@@ -60,6 +66,13 @@ def run(argv: List[str] | None = None) -> int:
     alt_m = float(args.alt_m)
     time_iso = str(args.time_iso)
 
+    # Setup output manager if saving is requested
+    output_manager = None
+    if args.save:
+        output_dir = args.output or config.get("output.directory", "./outputs/mission-results")
+        output_manager = OutputManager(output_dir)
+        logger.info(f"Output will be saved to: {output_manager.get_output_directory()}")
+
     if args.mode == "graph":
         graph_planner = GraphRoutePlanner(config)
         bounds = GridBounds(
@@ -82,11 +95,31 @@ def run(argv: List[str] | None = None) -> int:
             k = int(config.get("routing.num_alternatives", 3)) if bool(config.get("routing.allow_alternatives", True)) else 1
 
         routes = graph_planner.k_shortest_routes(G, start_lat, start_lon, goal_lat, goal_lon, k=max(1, k))
+        
+        # Build result
         result = {
             "mode": "graph",
             "k": len(routes),
             "routes": [_waypoints_to_dict(r) for r in routes],
         }
+        
+        # Save if requested
+        if output_manager:
+            format_to_save = args.format if args.format != "both" else "json"
+            saved_files = output_manager.save_multi_routes(
+                routes,
+                format=format_to_save,
+                base_filename="route",
+                metadata={
+                    "mode": "graph",
+                    "start": {"lat": start_lat, "lon": start_lon, "alt_m": alt_m},
+                    "goal": {"lat": goal_lat, "lon": goal_lon},
+                    "num_routes": len(routes),
+                }
+            )
+            result["saved_files"] = {k: str(v) for k, v in saved_files.items()}
+            logger.info(f"Routes saved to {format_to_save.upper()}")
+        
         print(json.dumps(result, indent=2))
         return 0
 
@@ -95,19 +128,71 @@ def run(argv: List[str] | None = None) -> int:
         if getattr(args, "smoothing_window", None) is not None:
             # override smoothing window at runtime
             config.raw.setdefault("routing", {})["smoothing_window"] = int(args.smoothing_window)
-        planner = RoutePlanner(config)
-        route = planner.optimize_route(
-            start_lat=start_lat,
-            start_lon=start_lon,
-            goal_lat=goal_lat,
-            goal_lon=goal_lon,
-            start_alt_m=alt_m,
+        
+        # Generate straight-line path with linear interpolation
+        planner = AStarPlanner(config)
+        start_wp = Waypoint(lat=start_lat, lon=start_lon, alt_m=alt_m)
+        goal_wp = Waypoint(lat=goal_lat, lon=goal_lon, alt_m=alt_m)
+        
+        # Use the planner's plan method
+        plan = planner.plan(
+            start=start_wp,
+            goal=goal_wp,
             time_iso=time_iso,
         )
+        route = plan.waypoints
+        
         result = {
             "mode": "straight",
             "route": _waypoints_to_dict(route),
+            "distance_km": plan.distance_km,
+            "energy_kwh": plan.energy_kwh,
+            "risk_score": plan.risk_score,
         }
+        
+        # Save if requested
+        if output_manager:
+            if args.format == "both":
+                # Save both CSV and JSON
+                csv_path = output_manager.save_route(
+                    route,
+                    format="csv",
+                    metadata={
+                        "mode": "straight",
+                        "start": {"lat": start_lat, "lon": start_lon, "alt_m": alt_m},
+                        "goal": {"lat": goal_lat, "lon": goal_lon},
+                        "num_waypoints": len(route),
+                    }
+                )
+                json_path = output_manager.save_route(
+                    route,
+                    format="json",
+                    metadata={
+                        "mode": "straight",
+                        "start": {"lat": start_lat, "lon": start_lon, "alt_m": alt_m},
+                        "goal": {"lat": goal_lat, "lon": goal_lon},
+                        "num_waypoints": len(route),
+                    }
+                )
+                result["saved_files"] = {
+                    "csv": str(csv_path),
+                    "json": str(json_path),
+                }
+                logger.info("Route saved to both CSV and JSON")
+            else:
+                saved_path = output_manager.save_route(
+                    route,
+                    format=args.format,
+                    metadata={
+                        "mode": "straight",
+                        "start": {"lat": start_lat, "lon": start_lon, "alt_m": alt_m},
+                        "goal": {"lat": goal_lat, "lon": goal_lon},
+                        "num_waypoints": len(route),
+                    }
+                )
+                result["saved_files"] = {args.format: str(saved_path)}
+                logger.info(f"Route saved to {args.format.upper()}")
+        
         print(json.dumps(result, indent=2))
         return 0
 
