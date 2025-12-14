@@ -1,204 +1,228 @@
+"""
+A* Based Route Planner
+
+Implements A* pathfinding with multi-objective optimization.
+Integrates with perception layer for cost and feasibility queries.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Optional, Set
+from typing import List, Dict, Optional, Set
 import heapq
-import math
+import logging
 
 import numpy as np
 
+from ..base import RoutePlanner, Waypoint, RoutePlan
 from ..config import PlanningConfig
 from ..serving.perception_client import PerceptionClient
 
-
-@dataclass
-class Waypoint:
-    lat: float
-    lon: float
-    alt_m: float
-    
-    def __hash__(self):
-        return hash((round(self.lat, 6), round(self.lon, 6), round(self.alt_m, 1)))
-    
-    def __eq__(self, other):
-        if not isinstance(other, Waypoint):
-            return False
-        return (round(self.lat, 6) == round(other.lat, 6) and
-                round(self.lon, 6) == round(other.lon, 6) and
-                round(self.alt_m, 1) == round(other.alt_m, 1))
+logger = logging.getLogger(__name__)
 
 
 @dataclass(order=True)
-class AStarNode:
-    """Node for A* search"""
+class _AStarNode:
+    """Internal node for A* search."""
+    
     f_cost: float  # Total cost (g + h)
     waypoint: Waypoint = field(compare=False)
-    g_cost: float = field(compare=False)  # Cost from start
-    h_cost: float = field(compare=False)  # Heuristic cost to goal
-    parent: Optional[AStarNode] = field(default=None, compare=False)
+    g_cost: float = field(compare=False)
+    h_cost: float = field(compare=False)
+    parent: Optional[_AStarNode] = field(default=None, compare=False)
 
 
-class RoutePlanner:
+class AStarPlanner(RoutePlanner):
     """
     A* based route planner with multi-objective optimization.
 
-    Integrates with perception-layer by querying fused maps for cost/risk.
-    Supports dynamic feasibility constraints and multi-objective costs.
+    Features:
+    - A* pathfinding with admissible heuristic
+    - Multi-objective cost computation
+    - Dynamic feasibility constraints
+    - Perception layer integration
+    - Automatic fallback to straight-line routing
+    - Path smoothing for realistic trajectories
+
+    Example:
+        >>> config = PlanningConfig()
+        >>> planner = AStarPlanner(config)
+        >>> start = Waypoint(40.7128, -74.0060, 100)
+        >>> goal = Waypoint(34.0522, -118.2437, 100)
+        >>> plan = planner.plan(start, goal, "2024-01-01T12:00:00Z")
+        >>> print(f"Distance: {plan.distance_km:.1f} km")
     """
 
     def __init__(self, config: PlanningConfig) -> None:
+        """Initialize A* planner."""
         self.config = config
-        self.perception = PerceptionClient(config)
         
-        # Grid resolution for search space
-        self.grid_resolution_deg = 0.01  # ~1km at equator
+        # Initialize perception client with graceful fallback for testing
+        try:
+            self.perception = PerceptionClient(config)
+        except (ImportError, ValueError):
+            logger.warning("Perception layer not available; using fake-mode for testing.")
+            self.perception = PerceptionClient(config, use_fake=True)
         
-        # Cost weights
-        self.cost_weights = {
+        # Grid resolution for search space (degrees)
+        self.grid_resolution_deg = float(config.get("routing.grid_resolution_deg", 0.01))
+        
+        # Cost weights for multi-objective optimization
+        self.cost_weights = config.get("routing.objective_weights", {
             "distance": 0.3,
             "energy": 0.3,
             "risk": 0.3,
             "time": 0.1
-        }
+        })
+        
+        # Search parameters
+        self.max_iterations = int(config.get("routing.max_iterations", 1000))
+        self.goal_tolerance_km = float(config.get("routing.goal_tolerance_km", 0.5))
+        
+        # Smoothing
+        self.smoothing_window = int(config.get("routing.smoothing_window", 5))
 
-    def optimize_route(
+    def plan(
         self,
-        start_lat: float,
-        start_lon: float,
-        goal_lat: float,
-        goal_lon: float,
-        start_alt_m: float,
+        start: Waypoint,
+        goal: Waypoint,
         time_iso: str,
-        constraints: dict | None = None,
-    ) -> List[Waypoint]:
+        constraints: Optional[Dict] = None
+    ) -> RoutePlan:
         """
-        Find optimal route using A* algorithm.
+        Find optimal route from start to goal using A*.
         
         Args:
-            start_lat: Starting latitude
-            start_lon: Starting longitude
-            goal_lat: Goal latitude
-            goal_lon: Goal longitude
-            start_alt_m: Starting altitude in meters
-            time_iso: ISO timestamp
-            constraints: Optional constraints (max_altitude, min_altitude, etc.)
+            start: Starting waypoint
+            goal: Goal waypoint
+            time_iso: ISO timestamp for environment state
+            constraints: Optional dict with max_altitude, min_altitude, etc.
             
         Returns:
-            List of waypoints forming the route
+            RoutePlan with waypoints and cost metrics
+            
+        Raises:
+            ValueError: If route is clearly infeasible
         """
-        start_wp = Waypoint(start_lat, start_lon, start_alt_m)
-        goal_wp = Waypoint(goal_lat, goal_lon, start_alt_m)
+        logger.info(f"Planning route from {start} to {goal}")
         
         # Run A* search
-        path = self._astar_search(start_wp, goal_wp, time_iso, constraints)
+        waypoints = self._astar_search(start, goal, time_iso, constraints)
         
-        if not path:
-            # Fallback to straight line if A* fails
-            path = self._straight_line_fallback(start_wp, goal_wp)
+        if not waypoints:
+            # Fallback to straight line
+            logger.warning("A* search failed, using straight-line fallback")
+            waypoints = self._straight_line_fallback(start, goal)
         
         # Smooth the path
-        smoothed_path = self._smooth(path)
+        waypoints = self._smooth_path(waypoints)
         
-        return smoothed_path
+        # Compute route metrics
+        distance_km = self._compute_distance(waypoints)
+        energy_kwh = self._compute_energy(waypoints, time_iso)
+        risk_score = self._compute_risk(waypoints, time_iso)
+        flight_time_s = self._compute_flight_time(waypoints)
+        
+        return RoutePlan(
+            waypoints=waypoints,
+            distance_km=distance_km,
+            energy_kwh=energy_kwh,
+            risk_score=risk_score,
+            flight_time_s=flight_time_s,
+            metadata={
+                "algorithm": "A*",
+                "grid_resolution_deg": self.grid_resolution_deg,
+                "cost_weights": self.cost_weights
+            }
+        )
 
     def _astar_search(
         self,
         start: Waypoint,
         goal: Waypoint,
         time_iso: str,
-        constraints: Optional[dict]
+        constraints: Optional[Dict]
     ) -> List[Waypoint]:
-        """
-        A* pathfinding algorithm.
+        """Run A* search algorithm."""
         
-        Returns:
-            List of waypoints from start to goal, or empty list if no path found
-        """
-        # Priority queue: (f_cost, node)
-        open_set = []
-        heapq.heappush(open_set, AStarNode(
-            f_cost=0.0,
+        # Initialize start node
+        start_node = _AStarNode(
+            f_cost=self._heuristic(start, goal),
             waypoint=start,
             g_cost=0.0,
             h_cost=self._heuristic(start, goal),
             parent=None
-        ))
+        )
         
-        # Tracking visited nodes
-        closed_set: Set[Waypoint] = set()
-        g_scores: Dict[Waypoint, float] = {start: 0.0}
+        open_set = [start_node]
+        closed_set: Set[tuple] = set()
+        g_scores: Dict[tuple, float] = {(start.lat, start.lon, start.alt_m): 0.0}
         
-        # Search parameters
-        max_iterations = 1000
         iterations = 0
         
-        while open_set and iterations < max_iterations:
+        while open_set and iterations < self.max_iterations:
             iterations += 1
             
-            # Get node with lowest f_cost
             current_node = heapq.heappop(open_set)
             current_wp = current_node.waypoint
+            current_key = (current_wp.lat, current_wp.lon, current_wp.alt_m)
             
-            # Goal reached?
+            # Goal check
             if self._is_goal(current_wp, goal):
+                logger.info(f"Found path in {iterations} iterations")
                 return self._reconstruct_path(current_node)
             
-            # Mark as visited
-            if current_wp in closed_set:
+            # Skip if already visited
+            if current_key in closed_set:
                 continue
-            closed_set.add(current_wp)
+            closed_set.add(current_key)
             
             # Expand neighbors
-            neighbors = self._get_neighbors(current_wp, goal, constraints)
+            neighbors = self._get_neighbors(current_wp, constraints)
             
             for neighbor_wp in neighbors:
-                if neighbor_wp in closed_set:
+                neighbor_key = (neighbor_wp.lat, neighbor_wp.lon, neighbor_wp.alt_m)
+                
+                if neighbor_key in closed_set:
                     continue
                 
-                # Compute cost to neighbor
-                edge_cost = self._compute_edge_cost(
-                    current_wp, neighbor_wp, time_iso
-                )
+                # Compute edge cost
+                edge_cost = self._compute_edge_cost(current_wp, neighbor_wp, time_iso)
                 
-                # Skip if infeasible
+                # Skip infeasible edges
                 if edge_cost < 0:
                     continue
                 
                 tentative_g = current_node.g_cost + edge_cost
                 
-                # Better path found?
-                if neighbor_wp not in g_scores or tentative_g < g_scores[neighbor_wp]:
-                    g_scores[neighbor_wp] = tentative_g
+                # Check if this is a better path
+                if neighbor_key not in g_scores or tentative_g < g_scores[neighbor_key]:
+                    g_scores[neighbor_key] = tentative_g
                     h_cost = self._heuristic(neighbor_wp, goal)
                     f_cost = tentative_g + h_cost
                     
-                    neighbor_node = AStarNode(
+                    neighbor_node = _AStarNode(
                         f_cost=f_cost,
                         waypoint=neighbor_wp,
                         g_cost=tentative_g,
                         h_cost=h_cost,
                         parent=current_node
                     )
-                    
                     heapq.heappush(open_set, neighbor_node)
         
-        # No path found
+        logger.warning(f"A* search failed after {iterations} iterations")
         return []
-    
+
     def _get_neighbors(
         self,
         waypoint: Waypoint,
-        goal: Waypoint,
-        constraints: Optional[dict]
+        constraints: Optional[Dict] = None
     ) -> List[Waypoint]:
-        """
-        Generate neighbor waypoints for expansion.
+        """Generate neighbor waypoints for expansion."""
         
-        Uses 8-connected grid in lat/lon plus altitude variations.
-        """
         neighbors = []
         
-        # 8-connected grid movements
+        # 8-connected grid in lat/lon
         for dlat in [-1, 0, 1]:
             for dlon in [-1, 0, 1]:
                 if dlat == 0 and dlon == 0:
@@ -207,21 +231,20 @@ class RoutePlanner:
                 new_lat = waypoint.lat + dlat * self.grid_resolution_deg
                 new_lon = waypoint.lon + dlon * self.grid_resolution_deg
                 
-                # Consider altitude variations
-                for dalt in [0]:  # Can add [-50, 0, 50] for 3D planning
-                    new_alt = waypoint.alt_m + dalt
-                    
-                    # Apply constraints
-                    if constraints:
-                        min_alt = constraints.get("min_altitude_m", 50)
-                        max_alt = constraints.get("max_altitude_m", 5000)
-                        if not (min_alt <= new_alt <= max_alt):
-                            continue
-                    
-                    neighbors.append(Waypoint(new_lat, new_lon, new_alt))
+                # Maintain altitude (could add altitude variations here)
+                new_alt = waypoint.alt_m
+                
+                # Check constraints
+                if constraints:
+                    min_alt = constraints.get("min_altitude_m", 50)
+                    max_alt = constraints.get("max_altitude_m", 5000)
+                    if not (min_alt <= new_alt <= max_alt):
+                        continue
+                
+                neighbors.append(Waypoint(new_lat, new_lon, new_alt))
         
         return neighbors
-    
+
     def _compute_edge_cost(
         self,
         from_wp: Waypoint,
@@ -229,76 +252,68 @@ class RoutePlanner:
         time_iso: str
     ) -> float:
         """
-        Compute cost of edge between two waypoints.
-        
-        Combines distance, energy, risk, and time costs.
+        Compute multi-objective cost for edge.
         
         Returns:
-            Edge cost, or -1 if infeasible
+            Cost value, or -1 if infeasible
         """
         try:
             # Query perception layer
-            # Query perception (supports local, HTTP, or fake mode)
             result = self.perception.query(
-                to_wp.lat, to_wp.lon, to_wp.alt_m, time_iso or "1970-01-01T00:00:00Z"
+                to_wp.lat, to_wp.lon, to_wp.alt_m, time_iso
             )
             
             # Check feasibility
-            if not result.feasible:
+            if not getattr(result, 'feasible', True) is False:
+                # Compute distance
+                dist_km = to_wp.distance_to(from_wp) / 1000.0  # Convert m to km
+                
+                # Component costs
+                distance_cost = dist_km
+                energy_cost = getattr(result, 'energy_cost_kwh_per_km', 1.0) * dist_km
+                risk_cost = getattr(result, 'risk_score', 0.0) * dist_km
+                
+                # Time cost (assume 35 m/s cruise speed)
+                time_cost = (dist_km * 1000) / 35.0 / 3600.0
+                
+                # Weighted combination
+                total_cost = (
+                    self.cost_weights.get("distance", 0.3) * distance_cost +
+                    self.cost_weights.get("energy", 0.3) * energy_cost +
+                    self.cost_weights.get("risk", 0.3) * risk_cost +
+                    self.cost_weights.get("time", 0.1) * time_cost
+                )
+                
+                return total_cost
+            else:
                 return -1.0
-            
-            # Compute distance
-            distance_km = self._haversine_km(
-                from_wp.lat, from_wp.lon, to_wp.lat, to_wp.lon
-            )
-            
-            # Multi-objective cost
-            distance_cost = distance_km
-            energy_cost = result.energy_cost_kwh_per_km * distance_km
-            risk_cost = result.risk_score * distance_km
-            
-            # Assume constant cruise speed for time cost
-            cruise_speed_ms = 35.0  # m/s
-            time_cost = (distance_km * 1000) / cruise_speed_ms / 3600  # hours
-            
-            # Weighted combination
-            total_cost = (
-                self.cost_weights.get("distance", 0.3) * distance_cost +
-                self.cost_weights.get("energy", 0.3) * energy_cost +
-                self.cost_weights.get("risk", 0.3) * risk_cost +
-                self.cost_weights.get("time", 0.1) * time_cost
-            )
-            
-            return total_cost
-            
+                
         except Exception as e:
-            # If perception query fails, return high cost
+            logger.debug(f"Perception query failed: {e}")
             return 10.0
-    
+
     def _heuristic(self, waypoint: Waypoint, goal: Waypoint) -> float:
         """
-        Heuristic function for A* (admissible lower bound on cost).
+        Admissible heuristic using straight-line distance.
         
-        Uses straight-line distance as heuristic.
+        Guarantees A* optimality by underestimating true cost.
         """
-        distance_km = self._haversine_km(
-            waypoint.lat, waypoint.lon, goal.lat, goal.lon
-        )
+        dist_m = waypoint.distance_to(goal)
+        dist_km = dist_m / 1000.0
         
-        # Scale by minimum cost weight (optimistic estimate)
-        min_cost_per_km = min(self.cost_weights.values())
+        # Minimum cost per km (from weights)
+        min_weight = min(self.cost_weights.values())
         
-        return distance_km * min_cost_per_km
-    
-    def _is_goal(self, waypoint: Waypoint, goal: Waypoint, tolerance_deg: float = 0.01) -> bool:
-        """Check if waypoint is close enough to goal."""
-        distance_km = self._haversine_km(
-            waypoint.lat, waypoint.lon, goal.lat, goal.lon
-        )
-        return distance_km < (tolerance_deg * 111)  # ~1km tolerance
-    
-    def _reconstruct_path(self, node: AStarNode) -> List[Waypoint]:
-        """Reconstruct path from goal node back to start."""
+        return dist_km * min_weight
+
+    def _is_goal(self, waypoint: Waypoint, goal: Waypoint) -> bool:
+        """Check if waypoint is within goal tolerance."""
+        dist_m = waypoint.distance_to(goal)
+        dist_km = dist_m / 1000.0
+        return dist_km < self.goal_tolerance_km
+
+    def _reconstruct_path(self, node: _AStarNode) -> List[Waypoint]:
+        """Reconstruct path from goal node to start."""
         path = []
         current = node
         
@@ -308,72 +323,101 @@ class RoutePlanner:
         
         path.reverse()
         return path
-    
+
     def _straight_line_fallback(self, start: Waypoint, goal: Waypoint) -> List[Waypoint]:
-        """Fallback to straight line if A* fails."""
-        num_points = 25
+        """Create straight-line path as fallback."""
+        num_points = max(25, int(start.distance_to(goal) / 1000))
+        
         lats = np.linspace(start.lat, goal.lat, num_points)
         lons = np.linspace(start.lon, goal.lon, num_points)
-        alts = np.full(num_points, start.alt_m)
+        alts = np.linspace(start.alt_m, goal.alt_m, num_points)
         
-        return [Waypoint(float(lat), float(lon), float(alt)) 
+        return [Waypoint(float(lat), float(lon), float(alt))
                 for lat, lon, alt in zip(lats, lons, alts)]
-    
-    def _haversine_km(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """Compute Haversine distance in km."""
-        R = 6371.0
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = (math.sin(dlat/2)**2 + 
-             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * 
-             math.sin(dlon/2)**2)
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        return R * c
 
-    def _smooth(self, waypoints: List[Waypoint]) -> List[Waypoint]:
-        window = int(self.config.get("routing.smoothing_window", 5))
-        if window < 3 or len(waypoints) < window:
+    def _smooth_path(self, waypoints: List[Waypoint]) -> List[Waypoint]:
+        """Smooth waypoint sequence using moving average."""
+        
+        window = self.smoothing_window
+        if window < 3 or len(waypoints) <= window:
             return waypoints
+        
         arr = np.array([[w.lat, w.lon, w.alt_m] for w in waypoints])
         kernel = np.ones(window) / window
+        
         smoothed = np.vstack([
             np.convolve(arr[:, i], kernel, mode="same") for i in range(3)
         ]).T
-        return [Waypoint(float(a), float(b), float(c)) for a, b, c in smoothed]
+        
+        return [Waypoint(float(lat), float(lon), float(alt))
+                for lat, lon, alt in smoothed]
 
-    def compute_route_cost(self, route: List[Waypoint], time_iso: str) -> float:
-        if len(route) < 2:
+    def _compute_distance(self, waypoints: List[Waypoint]) -> float:
+        """Compute total distance along waypoint sequence."""
+        if len(waypoints) < 2:
             return 0.0
-        weights = self.config.get("routing.objective_weights", {"time": 0.4, "energy": 0.3, "risk": 0.3})
-        cruise_speed_mps = float(self.config.get("energy.cruise_speed_mps", 35.0))
-
-        total_distance_km = 0.0
-        total_energy_kwh = 0.0
-        total_risk = 0.0
-
-        for a, b in zip(route[:-1], route[1:]):
-            result = self.perception.query(a.lat, a.lon, a.alt_m, time_iso)
-            # distance
-            d_km = self._haversine_km(a.lat, a.lon, b.lat, b.lon)
-            total_distance_km += d_km
-            # energy
-            e_kwh_per_km = result.energy_cost_kwh_per_km
-            total_energy_kwh += e_kwh_per_km * d_km
-            # risk
-            total_risk += result.risk_score * d_km
-
-        # time objective (seconds)
-        time_s = (total_distance_km * 1000.0) / max(1e-6, cruise_speed_mps)
-
-        # Normalize with simple scalers to keep magnitudes comparable
-        time_norm = time_s / 3600.0  # hours
-        energy_norm = total_energy_kwh
-        risk_norm = total_risk / max(1e-6, total_distance_km)  # average risk
-
-        return (
-            weights.get("time", 0.4) * time_norm
-            + weights.get("energy", 0.3) * energy_norm
-            + weights.get("risk", 0.3) * risk_norm
+        
+        total_m = sum(
+            waypoints[i].distance_to(waypoints[i + 1])
+            for i in range(len(waypoints) - 1)
         )
+        
+        return total_m / 1000.0  # Convert to km
+
+    def _compute_energy(self, waypoints: List[Waypoint], time_iso: str) -> float:
+        """Estimate total energy consumption."""
+        if len(waypoints) < 2:
+            return 0.0
+        
+        total_energy = 0.0
+        
+        for i in range(len(waypoints) - 1):
+            a, b = waypoints[i], waypoints[i + 1]
+            dist_km = a.distance_to(b) / 1000.0
+            
+            try:
+                result = self.perception.query(a.lat, a.lon, a.alt_m, time_iso)
+                e_per_km = getattr(result, 'energy_cost_kwh_per_km', 1.0)
+                total_energy += e_per_km * dist_km
+            except:
+                total_energy += 1.0 * dist_km  # Default fallback
+        
+        return total_energy
+
+    def _compute_risk(self, waypoints: List[Waypoint], time_iso: str) -> float:
+        """Compute average risk along route."""
+        if len(waypoints) < 2:
+            return 0.0
+        
+        total_risk_weighted = 0.0
+        total_distance = 0.0
+        
+        for i in range(len(waypoints) - 1):
+            a, b = waypoints[i], waypoints[i + 1]
+            dist_km = a.distance_to(b) / 1000.0
+            
+            try:
+                result = self.perception.query(a.lat, a.lon, a.alt_m, time_iso)
+                risk = getattr(result, 'risk_score', 0.0)
+                total_risk_weighted += risk * dist_km
+            except:
+                pass
+            
+            total_distance += dist_km
+        
+        if total_distance <= 0:
+            return 0.0
+        
+        return min(total_risk_weighted / total_distance, 1.0)
+
+    def _compute_flight_time(self, waypoints: List[Waypoint]) -> float:
+        """Estimate flight time assuming constant cruise speed."""
+        distance_km = self._compute_distance(waypoints)
+        cruise_speed_m_s = float(self.config.get("energy.cruise_speed_mps", 35.0))
+        
+        # Convert km to m and compute time
+        time_s = (distance_km * 1000.0) / cruise_speed_m_s
+        
+        return time_s
 
 
