@@ -179,7 +179,6 @@ def plot_terrain_3d_plotly(
             contours=dict(
                 z=dict(
                     show=True,
-                    usecolormap=True,
                     highlightcolor='#FFFFFF',
                     project=dict(z=True)
                 )
