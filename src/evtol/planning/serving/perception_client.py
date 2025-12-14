@@ -58,6 +58,7 @@ class PerceptionClient:
             config: PlanningConfig object (optional, for compatibility)
             api_endpoint: HTTP API endpoint (e.g., "http://localhost:8000")
             use_http: Force HTTP mode even if perception is importable
+            use_fake: Explicitly enable fake mode for testing (default: False)
         """
         # Extract API endpoint from config if provided
         if config is not None and api_endpoint is None:
@@ -70,7 +71,7 @@ class PerceptionClient:
         self.use_fake = bool(use_fake)
         
         # Try to import perception layer for in-process use
-        if not self.use_http:
+        if not self.use_http and not self.use_fake:
             try:
                 # Add perception-layer to path
                 project_root = Path(__file__).parent.parent.parent.parent.parent
@@ -86,12 +87,8 @@ class PerceptionClient:
                 self.perception_available = True
                 logger.info("Perception layer available for in-process queries")
             except ImportError as e:
-                logger.warning(f"Perception layer not importable: {e}. Will use HTTP mode if endpoint provided.")
-        # If neither local nor HTTP configured, enable fake mode as last resort
-        if not self.use_http and not self.perception_available:
-            if not self.use_fake:
-                logger.warning("Perception not available; enabling fake-mode provider for planning.")
-            self.use_fake = True
+                logger.error(f"Perception layer not importable: {e}. Provide perception_api.url in config or set use_fake=True to enable fake-mode.")
+                raise
         
         # Validate HTTP endpoint if using HTTP mode
         if self.use_http:
