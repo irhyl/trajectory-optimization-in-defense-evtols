@@ -76,6 +76,10 @@ class ThreatAssessmentModel:
         self.sam_range_map = None
         self.threat_heatmap = None
         self.metadata = ThreatMetadata()
+
+        # For multi-altitude threat visualization
+        self.altitude_bands = [100, 500, 1000, 2000, 3000, 4000]
+        self.threat_grid = None  # Will be (alt, y, x)
     
     def add_threat_source(self, threat_source: ThreatSource) -> None:
         """Add a threat source to the model."""
@@ -142,9 +146,15 @@ class ThreatAssessmentModel:
         ))
         
         # Generate threat maps
-        self._compute_radar_detection_map()
-        self._compute_sam_range_map()
-        self._compute_combined_threat_map()
+
+        # Generate threat grid for multiple altitudes
+        self.threat_grid = np.zeros((len(self.altitude_bands), self.grid_size, self.grid_size))
+        for i, alt in enumerate(self.altitude_bands):
+            self._compute_radar_detection_map(altitude_m=alt)
+            self._compute_sam_range_map()
+            self._compute_combined_threat_map()
+            # Save the combined threat map for this altitude
+            self.threat_grid[i] = self.threat_heatmap
     
     def _compute_radar_detection_map(self, altitude_m: float = 500.0) -> None:
         """

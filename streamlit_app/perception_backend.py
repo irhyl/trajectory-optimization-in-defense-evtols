@@ -67,67 +67,189 @@ class PerceptionConfig:
 
 
 class PerceptionManager:
-        def get_terrain_wind_3d_figure(self, altitude_idx: int = 1, n_vectors: int = 15):
-            """Return a Plotly figure with terrain surface and wind cones at selected altitude."""
-            if not (self._terrain_model and self._wind_model):
+    def get_fused_dataframe(self, sample_size: int = 500) -> pd.DataFrame:
+        """Convert fused intelligence data to DataFrame for CSV export."""
+        if not self._fusion_model:
+            return pd.DataFrame()
+        risk_map = self._fusion_model.risk_map
+        feasibility_map = self._fusion_model.feasibility_map
+        energy_cost_map = self._fusion_model.energy_cost_map
+        ny, nx = risk_map.shape
+        indices = np.random.choice(ny * nx, min(sample_size, ny * nx), replace=False)
+        rows = indices // nx
+        cols = indices % nx
+        lat_range = np.linspace(self.config.bounds_south, self.config.bounds_north, ny)
+        lon_range = np.linspace(self.config.bounds_west, self.config.bounds_east, nx)
+        return pd.DataFrame({
+            'Latitude': lat_range[rows],
+            'Longitude': lon_range[cols],
+            'Risk': risk_map[rows, cols],
+            'Feasibility': feasibility_map[rows, cols],
+            'Energy Cost': energy_cost_map[rows, cols]
+        })
+    def get_threat_surface_3d_figure(self, altitude_idx: int = 1):
+        """Return a Plotly figure with 3D threat surface, source markers, and range rings at selected altitude."""
+        if not self._threat_model:
+            return None
+        try:
+            import plotly.graph_objects as go
+            # Assume threat_model has .threat_grid [alt, y, x], .altitude_bands, .threat_sources (with lat_idx, lon_idx, range_m)
+            threat_grid = getattr(self._threat_model, 'threat_grid', None)
+            altitudes = getattr(self._threat_model, 'altitude_bands', [0, 100, 500])
+            if threat_grid is None:
                 return None
-            try:
-                import plotly.graph_objects as go
-                elevation = self._terrain_model.elevation
-                ny, nx = elevation.shape
-                x = np.arange(nx)
-                y = np.arange(ny)
-                # Terrain surface
-                surface = go.Surface(
-                    z=elevation,
-                    x=x,
-                    y=y,
-                    colorscale='Earth',
-                    showscale=False,
-                    opacity=0.85,
-                    name='Terrain'
-                )
-                # Wind cones (subsample for clarity)
-                u = self._wind_model.wind_u[altitude_idx]
-                v = self._wind_model.wind_v[altitude_idx]
-                w = np.zeros_like(u)  # Assume horizontal wind only
-                step = max(1, nx // n_vectors)
-                xg, yg = np.meshgrid(x, y)
-                cone = go.Cone(
-                    x=xg[::step, ::step].flatten(),
-                    y=yg[::step, ::step].flatten(),
-                    z=(elevation[::step, ::step]).flatten(),
-                    u=u[::step, ::step].flatten(),
-                    v=v[::step, ::step].flatten(),
-                    w=w[::step, ::step].flatten(),
-                    sizemode="absolute",
-                    sizeref=2,
-                    anchor="tail",
-                    colorscale='Blues',
-                    showscale=False,
-                    name='Wind Vectors',
-                    opacity=0.7
-                )
-                fig = go.Figure(data=[surface, cone])
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title='Longitude Index',
-                        yaxis_title='Latitude Index',
-                        zaxis_title='Elevation (m)',
-                        aspectmode='cube',
-                    ),
-                    margin=dict(l=10, r=10, t=30, b=10),
-                    paper_bgcolor='#f8f9fa',
-                    plot_bgcolor='#f8f9fa',
-                    font=dict(family="Roboto, sans-serif", size=14, color="#222"),
-                    showlegend=False,
-                    title=f"Terrain and Wind Vectors at {int(self._wind_model.altitude_bands[altitude_idx])}m"
-                )
-                return fig
-            except Exception as e:
-                import streamlit as st
-                st.warning(f"Could not create combined terrain/wind plot: {e}")
-                return None
+            z = threat_grid[altitude_idx]
+            ny, nx = z.shape
+            x = list(range(nx))
+            y = list(range(ny))
+            # 3D surface for threat intensity
+            surface = go.Surface(
+                z=z,
+                x=x,
+                y=y,
+                colorscale='Reds',
+                showscale=True,
+                opacity=0.7,
+                name='Threat Intensity',
+                colorbar=dict(title="Threat Level", thickness=14, len=0.5, tickfont=dict(size=12))
+            )
+            # Source markers
+            sources = getattr(self._threat_model, 'threat_sources', [])
+            marker_x = [int(s.lon_idx) for s in sources]
+            marker_y = [int(s.lat_idx) for s in sources]
+            marker_z = [z[int(s.lat_idx), int(s.lon_idx)] for s in sources]
+            scatter = go.Scatter3d(
+                x=marker_x,
+                y=marker_y,
+                z=marker_z,
+                mode='markers',
+                marker=dict(size=8, color='blue', symbol='circle'),
+                name='Threat Sources',
+                hoverinfo='text',
+                text=[f"Source {i+1}" for i in range(len(sources))]
+            )
+            # Range rings (as 2D circles at selected altitude)
+            ring_traces = []
+            for s in sources:
+                theta = np.linspace(0, 2*np.pi, 100)
+                # Compute range in grid indices if not present
+                if hasattr(s, 'range_idx'):
+                    r = getattr(s, 'range_idx')
+                else:
+                    # Use model resolution if available, else fallback to 10
+                    res = getattr(self._threat_model, 'resolution_m', 1.0)
+                    r = getattr(s, 'range_m', 10) / res if res else 10
+                lon_idx = int(s.lon_idx)
+                lat_idx = int(s.lat_idx)
+                ring_x = lon_idx + r * np.cos(theta)
+                ring_y = lat_idx + r * np.sin(theta)
+                ring_z = [z[lat_idx, lon_idx]] * len(theta)
+                ring_traces.append(go.Scatter3d(
+                    x=ring_x, y=ring_y, z=ring_z,
+                    mode='lines', line=dict(color='blue', width=2, dash='dot'),
+                    name='Range Ring', showlegend=False
+                ))
+            fig = go.Figure(data=[surface, scatter] + ring_traces)
+            fig.update_layout(
+                scene=dict(
+                    xaxis_title='Longitude Index',
+                    yaxis_title='Latitude Index',
+                    zaxis_title='Threat Level',
+                    aspectmode='cube',
+                ),
+                margin=dict(l=10, r=10, t=30, b=10),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='#f8f9fa',
+                font=dict(family="Roboto, sans-serif", size=14, color="#222"),
+                showlegend=True,
+                title=f"Threat Surface and Sources at {int(altitudes[altitude_idx])}m"
+            )
+            return fig
+        except Exception as e:
+            import streamlit as st
+            st.warning(f"Could not create threat surface plot: {e}")
+            return None
+
+    def __init__(self, config: Optional[PerceptionConfig] = None):
+        """Initialize perception manager with configuration."""
+        self.config = config or PerceptionConfig()
+        # Models (initialized lazily)
+        self._terrain_model: Optional[TerrainElevationMap] = None
+        self._wind_model: Optional[WindFieldModel] = None
+        self._threat_model: Optional[ThreatAssessmentModel] = None
+        self._obstacle_model: Optional[ObstacleDetectionModel] = None
+        self._fusion_model: Optional[FusedIntelligenceModel] = None
+        # Status tracking
+        self.is_generated = False
+        self.generation_status: Dict[str, bool] = {
+            'terrain': False,
+            'wind': False,
+            'threat': False,
+            'obstacle': False,
+            'fusion': False
+        }
+
+    def get_terrain_wind_3d_figure(self, altitude_idx: int = 1, n_vectors: int = 15):
+        """Return a Plotly figure with terrain surface and wind cones at selected altitude."""
+        if not (self._terrain_model and self._wind_model):
+            return None
+        try:
+            import plotly.graph_objects as go
+            elevation = self._terrain_model.elevation
+            ny, nx = elevation.shape
+            x = np.arange(nx)
+            y = np.arange(ny)
+            # Terrain surface
+            surface = go.Surface(
+                z=elevation,
+                x=x,
+                y=y,
+                colorscale='Earth',
+                showscale=False,
+                opacity=0.85,
+                name='Terrain'
+            )
+            # Wind cones (subsample for clarity)
+            u = self._wind_model.wind_u[altitude_idx]
+            v = self._wind_model.wind_v[altitude_idx]
+            w = np.zeros_like(u)  # Assume horizontal wind only
+            step = max(1, nx // n_vectors)
+            xg, yg = np.meshgrid(x, y)
+            cone = go.Cone(
+                x=xg[::step, ::step].flatten(),
+                y=yg[::step, ::step].flatten(),
+                z=(elevation[::step, ::step]).flatten(),
+                u=u[::step, ::step].flatten(),
+                v=v[::step, ::step].flatten(),
+                w=w[::step, ::step].flatten(),
+                sizemode="absolute",
+                sizeref=2,
+                anchor="tail",
+                colorscale='Blues',
+                showscale=False,
+                name='Wind Vectors',
+                opacity=0.7
+            )
+            fig = go.Figure(data=[surface, cone])
+            fig.update_layout(
+                scene=dict(
+                    xaxis_title='Longitude Index',
+                    yaxis_title='Latitude Index',
+                    zaxis_title='Elevation (m)',
+                    aspectmode='cube',
+                ),
+                margin=dict(l=10, r=10, t=30, b=10),
+                paper_bgcolor='#f8f9fa',
+                plot_bgcolor='#f8f9fa',
+                font=dict(family="Roboto, sans-serif", size=14, color="#222"),
+                showlegend=False,
+                title=f"Terrain and Wind Vectors at {int(self._wind_model.altitude_bands[altitude_idx])}m"
+            )
+            return fig
+        except Exception as e:
+            import streamlit as st
+            st.warning(f"Could not create combined terrain/wind plot: {e}")
+            return None
     # ...existing code...
         """Initialize perception manager with configuration."""
         self.config = config or PerceptionConfig()

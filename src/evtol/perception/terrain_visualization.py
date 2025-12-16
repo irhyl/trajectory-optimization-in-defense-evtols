@@ -172,7 +172,6 @@ def plot_terrain_3d_plotly(
                 len=0.7,
                 x=1.02,
                 tickfont=dict(size=10, color='#333333'),
-                titlefont=dict(size=11, color='#333333'),
                 bordercolor='#CCCCCC',
                 borderwidth=1
             ),
@@ -203,7 +202,6 @@ def plot_terrain_3d_plotly(
                 gridcolor='#E0E0E0',
                 showbackground=True,
                 zerolinecolor='#CCCCCC',
-                titlefont=dict(size=11, color='#333333'),
                 tickfont=dict(size=9, color='#333333')
             ),
             yaxis=dict(
@@ -212,7 +210,6 @@ def plot_terrain_3d_plotly(
                 gridcolor='#E0E0E0',
                 showbackground=True,
                 zerolinecolor='#CCCCCC',
-                titlefont=dict(size=11, color='#333333'),
                 tickfont=dict(size=9, color='#333333')
             ),
             zaxis=dict(
@@ -221,7 +218,6 @@ def plot_terrain_3d_plotly(
                 gridcolor='#E0E0E0',
                 showbackground=True,
                 zerolinecolor='#CCCCCC',
-                titlefont=dict(size=11, color='#333333'),
                 tickfont=dict(size=9, color='#333333')
             ),
             camera=dict(

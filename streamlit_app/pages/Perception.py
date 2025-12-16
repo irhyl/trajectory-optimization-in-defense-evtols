@@ -1,7 +1,9 @@
+
 import streamlit as st
 import sys
 import os
 import plotly.express as px
+import numpy as np
 
 # Ensure src is in sys.path for backend imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src')))
@@ -136,8 +138,8 @@ with tabs[1]:
 
     # --- Combined Terrain + Wind Vectors Visualization ---
     wind_model = getattr(manager, 'wind_model', None)
-    if wind_model:
-        altitudes = wind_model.altitude_bands
+    if wind_model is not None:
+        altitudes = getattr(wind_model, 'altitude_bands', [0, 100, 500])
         altitude_idx = st.slider(
             "Select Altitude Band (m)",
             min_value=0,
@@ -147,8 +149,13 @@ with tabs[1]:
             key="wind_altitude_slider"
         )
         fig = manager.get_terrain_wind_3d_figure(altitude_idx=altitude_idx)
-        if fig:
+        if fig is not None:
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        else:
+            st.warning("Wind 3D visualization could not be generated. (Backend returned None)")
+    else:
+        st.warning("Wind model is not available in the backend. Please check model generation.")
+        st.text(f"Debug: manager={manager is not None}, wind_model={wind_model is not None}")
 
     df = data.get('wind')
     if df is not None and not df.empty:
@@ -164,38 +171,24 @@ with tabs[2]:
     *What it shows:* Threat level as a function of altitude at the center of the domain. The plot uses color and vertical position to indicate low, medium, and high threat zones. Horizontal colored bands (green/yellow/red) visually separate safe, caution, and danger altitudes.
     *Purpose:* To assess risk from threats (e.g., radar, SAMs) at different altitudes. Helps operators choose safe flight altitudes and routes.
     """)
-    fig = manager.get_threat_3d_figure()
-    if fig:
-        fig.update_layout(
-            template="simple_white",
-            margin=dict(l=10, r=10, t=30, b=10),
-            font=dict(family="Roboto, sans-serif", size=14, color="#222"),
-            paper_bgcolor="#f8f9fa", plot_bgcolor="#f8f9fa",
-            scene=dict(
-                xaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Longitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                yaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Latitude", backgroundcolor="#f8f9fa", tickfont=dict(size=12)),
-                zaxis=dict(showgrid=True, gridcolor="#E5E5E5", zeroline=False, showticklabels=True, title="Altitude (m)", tickfont=dict(size=12)),
-                aspectmode="data"
-            ),
-            transition=dict(duration=500, easing="cubic-in-out")
-        )
-        fig.update_traces(
-            marker=dict(
-                colorscale=create_colorscale(COLOR_PALETTES["threats"]),
-                size=18,
-                opacity=0.7,
-                line=dict(width=2, color="#333"),
-                colorbar=dict(title="Threat Level", thickness=14, len=0.5, tickfont=dict(size=12))
-            ),
-            hovertemplate="<b>Lon</b>: %{x}<br><b>Lat</b>: %{y}<br><b>Alt</b>: %{z:.2f} m"
-        )
-        fig = add_reset_view_button(fig)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
-    
+
+    # --- 2D Threat Heatmap Visualization ---
+    # Only show the threat exposure table and CSV export
+
+    # --- Threat Exposure Table ---
     df = data.get('threat')
     if df is not None and not df.empty:
+        st.markdown("**Threat Exposure Table**")
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button("Export Threats CSV", df.to_csv(index=False).encode('utf-8'), "threats.csv")
+with tabs[5]:
+    st.markdown("<b>Fused Intelligence:</b> Combined risk, feasibility, and energy cost maps.", unsafe_allow_html=True)
+    fused_df = None
+    if hasattr(manager, 'get_fused_dataframe'):
+        fused_df = manager.get_fused_dataframe()
+    if fused_df is not None and not fused_df.empty:
+        st.dataframe(fused_df, use_container_width=True, hide_index=True)
+        st.download_button("Export Fused Intelligence CSV", fused_df.to_csv(index=False).encode('utf-8'), "fused_intelligence.csv")
 
 # --- Obstacles Tab ---
 with tabs[3]:
