@@ -1,110 +1,103 @@
 """
-Vehicle Layer Package
-This package provides comprehensive vehicle dynamics and energy management
-for eVTOL aircraft simulation and optimization.
+Vehicle Layer - Defense eVTOL Tiltrotor Dynamics
 
-Main Components:
-- VehicleModel: Main vehicle dynamics and simulation
-- BatteryModel: Advanced battery state modeling
-- MotorModel: Electric motor dynamics
-- FlightEnvelope: Constraint checking and validation
-- FaultInjector: Fault injection and modeling
-- VehicleAPI: REST API for remote access
+This package provides comprehensive 6-DoF vehicle dynamics modeling for
+a defense-oriented electric tiltrotor aircraft. The model captures:
 
-Example Usage:
-    from vehicle_layer import VehicleModel, VehicleConfig, VehicleState, ControlInputs
-    
-    # Load configuration
-    config = VehicleConfig("config/vehicle_config.yaml")
-    
-    # Create vehicle model
-    vehicle = VehicleModel(config)
-    
-    # Set initial state
-    initial_state = VehicleState(
-        position=np.array([0.0, 0.0, 100.0]),
-        velocity=np.array([0.0, 0.0, 0.0]),
-        attitude=np.array([0.0, 0.0, 0.0]),
-        angular_velocity=np.array([0.0, 0.0, 0.0]),
-        battery_soc=0.8,
-        battery_temperature=20.0,
-        battery_voltage=400.0,
-        rotor_rpm=np.array([1000, 1000, 1000, 1000]),
-        control_surface_deflections=np.array([0.0, 0.0, 0.0]),
-        time=0.0
-    )
-    
-    # Create control inputs
-    controls = ControlInputs(
-        main_rotor_rpm=np.array([1000, 1000, 1000, 1000]),
-        tail_rotor_rpm=1200,
-        lift_fan_rpm=np.array([800, 800]),
-        propeller_rpm=np.array([0, 0]),
-        elevator_deflection=0.0,
-        aileron_deflection=0.0,
-        rudder_deflection=0.0,
-        throttle=0.7,
-        collective=0.5
-    )
-    
-    # Run simulation
-    trajectory = vehicle.simulate(initial_state, controls, 0.01, 60.0)
+1. **Rigid Body Dynamics**: Full 6-DoF equations of motion with quaternion
+   attitude representation for singularity-free rotation.
+
+2. **Tiltrotor Propulsion**: Nacelle tilt dynamics, BEMT-based rotor
+   aerodynamics, PMSM motor models, and power distribution.
+
+3. **Aerodynamics**: Wing lift/drag, fuselage contributions, transition
+   flight modeling, and ground effect.
+
+4. **Energy Systems**: Electrochemical battery model with thermal dynamics,
+   power budget management, and reserve calculations.
+
+5. **Signature Models**: Radar cross-section (RCS), infrared (IR), and
+   acoustic signature prediction for survivability analysis.
+
+Mathematical Framework
+======================
+
+State Vector (13 states + auxiliaries):
+    x = [p_N, p_E, p_D,           # Position (NED)
+         u, v, w,                  # Body velocity
+         q0, q1, q2, q3,           # Quaternion attitude
+         p, q, r]                  # Angular rates
+
+Control Vector:
+    u = [δ_nacelle,               # Nacelle tilt angle
+         Ω_L, Ω_R,                # Left/right rotor speeds
+         θ_col_L, θ_col_R,        # Collective pitch
+         δ_e, δ_a, δ_r]           # Control surfaces
+
+Equations of Motion:
+    ṗ = R(q) · V_B                           (Position kinematics)
+    m(V̇_B + ω × V_B) = F_B                   (Translational dynamics)
+    q̇ = ½ q ⊗ ω                              (Attitude kinematics)
+    I·ω̇ + ω × (I·ω) = M_B                    (Rotational dynamics)
+
+Reference Frames:
+    - NED: North-East-Down (inertial)
+    - Body: Forward-Right-Down (aircraft)
+    - Nacelle: Rotated by nacelle angle from body
+    - Rotor: Aligned with rotor shaft
+
+Author: Defense eVTOL Research Team
+Version: 1.0.0
 """
 
-# Core vehicle components
-from .dynamics.vehicle_model import VehicleModel
-from .energy.battery_model import BatteryModel
-from .actuators.motor_model import MotorModel
-from .constraints.flight_envelope import FlightEnvelope
-from .faults.fault_injector import FaultInjector
+from .config import (
+    VehicleConfig,
+    TiltrotorConfig,
+    PropulsionConfig,
+    AerodynamicsConfig,
+    BatteryConfig,
+    SignatureConfig,
+)
 
-# Data structures
-from .dynamics.vehicle_model import VehicleState, ControlInputs
+# Standalone vehicle model (no dependencies)
+from .vehicle_model import (
+    TiltrotorVehicle,
+    ControlInputs,
+    VehicleOutput,
+    VehicleState,
+    FlightPhase,
+)
 
-# Utilities
-from .utils.config import VehicleConfig
-from .utils.data_loader import DataLoader
 
-# Integration
-from .integration.rk4_integrator import RK4Integrator
-
-# Serving
+# Optional: Import subpackage models if available
 try:
-    from .serving.api import VehicleAPI
+    from .dynamics.rigid_body import RigidBodyDynamics
+    from .dynamics.integrator import RK4Integrator, RK45AdaptiveIntegrator
 except ImportError:
-    # uvicorn not available, API not loaded
-    VehicleAPI = None
+    pass
+try:
+    from .propulsion.motor_model import PMSMMotor, MotorState
+    from .propulsion.rotor_model import BEMTRotor, RotorState
+    from .propulsion.nacelle import NacelleDynamics, NacelleState
+except ImportError:
+    pass
 
-# Version information
+try:
+    from .signatures.rcs import RCSModel
+    from .signatures.infrared import IRModel
+    from .signatures.acoustic import AcousticModel
+except ImportError:
+    pass
+
 __version__ = "1.0.0"
-__author__ = "eVTOL Defense System Team"
-__email__ = "team@evtol-defense.com"
+__author__ = "Defense eVTOL Research Team"
 
-# Package metadata
 __all__ = [
-    # Core components
-    "VehicleModel",
-    "BatteryModel", 
-    "MotorModel",
-    "FlightEnvelope",
-    "FaultInjector",
-    
-    # Data structures
-    "VehicleState",
+    # Main standalone model
+    "TiltrotorVehicle",
+    "TiltrotorConfig",
     "ControlInputs",
-    
-    # Utilities
-    "VehicleConfig",
-    "DataLoader",
-    
-    # Integration
-    "RK4Integrator",
-    
-    # Serving
-    "VehicleAPI",
-    
-    # Metadata
-    "__version__",
-    "__author__",
-    "__email__",
+    "VehicleOutput",
+    "VehicleState",
+    "FlightPhase",
 ]

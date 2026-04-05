@@ -1,19 +1,30 @@
 """
-Aerodynamics Module
+Aerodynamics Subpackage - Tiltrotor Aerodynamic Models
 
-This module provides comprehensive aerodynamic modeling for eVTOL aircraft,
-including rotor dynamics, propeller performance, and body aerodynamics.
+This subpackage contains aerodynamic models for tiltrotor eVTOL:
+
+Wing Model (wing_model.py):
+- WingAerodynamics: Finite wing with flaps and ailerons
+- Lift/drag/moment computation
+- Ground effect, dynamic stall
+
+Fuselage Model (fuselage_model.py):
+- FuselageAerodynamics: Body drag and side forces
+- Nacelle interference
+
+Transition Blending (transition.py):
+- TransitionAerodynamics: Blends rotor/wing lift
+- Conversion corridor management
 """
 
-from .rotor_model import RotorModel
-from .propeller_model import PropellerModel
-from .body_aerodynamics import BodyAerodynamics
-from .ground_effect import GroundEffect
+from .wing_model import WingAerodynamics, WingState
+from .fuselage_model import FuselageAerodynamics, FuselageState
+from .transition import TransitionAerodynamics
 
 __all__ = [
-    "RotorModel",
-    "PropellerModel",
-    "BodyAerodynamics",
-    "GroundEffect",
+    "WingAerodynamics",
+    "WingState",
+    "FuselageAerodynamics",
+    "FuselageState",
+    "TransitionAerodynamics",
 ]
-

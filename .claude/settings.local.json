@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from src.evtol.vehicle.dynamics import VehicleState, ControlInput, RigidBodyDynamics, RK4Integrator; print\\('dynamics import OK'\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python scripts/run_mission_stack.py)",
+      "Bash(.venv/Scripts/python -c ':*)",
+      "Bash(echo \"EXIT: $?\")"
+    ]
+  }
+}

@@ -1,14 +1,21 @@
 """
-6-DoF Vehicle Dynamics Module
+Dynamics Subpackage
 
-This module implements the complete 6-DoF rigid body dynamics for eVTOL aircraft,
-including translational and rotational motion, force and moment calculations,
-and kinematic transformations.
+This subpackage contains:
+- VehicleState: Complete state vector representation
+- ControlInput: Control input vector
+- RigidBodyDynamics: 6-DoF equations of motion
+- Integrators: RK4 and adaptive RK45
 """
 
-from .vehicle_model import VehicleModel
+from .state import VehicleState, ControlInput
+from .rigid_body import RigidBodyDynamics
+from .integrator import RK4Integrator, RK45AdaptiveIntegrator
 
 __all__ = [
-    "VehicleModel",
+    "VehicleState",
+    "ControlInput",
+    "RigidBodyDynamics",
+    "RK4Integrator",
+    "RK45AdaptiveIntegrator",
 ]
-
