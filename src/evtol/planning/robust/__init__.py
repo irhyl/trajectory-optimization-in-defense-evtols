@@ -1,46 +1,20 @@
 """
-Robust Planning Module
-
-This module provides robust planning capabilities under uncertainty:
-- Uncertainty modeling and propagation
-- Chance-constrained optimization
-- Risk-aware path planning
-
-These methods are essential for defense applications where:
-1. Wind and atmospheric conditions are uncertain
-2. Threat locations/capabilities may be imprecise
-3. Sensor data has measurement noise
-4. Mission success must be guaranteed with high probability
-
-Author: Defense eVTOL Research Team
+Robust planning module with uncertainty handling.
 """
 
-from .uncertainty import (
-    UncertaintyModel,
-    GaussianUncertainty,
-    UniformUncertainty,
-    WindUncertainty,
-    ThreatUncertainty,
-    UncertaintyPropagation,
-)
-from .chance_constraints import (
+from .uncertainty_planning import (
+    UncertainParameter,
     ChanceConstraint,
-    ProbabilisticSafetyConstraint,
-    RobustTrajectoryOptimizer,
-    ChanceConstrainedPlanner,
+    RobustPlanner,
+    ScenarioBasedPlanner
 )
 
 __all__ = [
-    # Uncertainty
-    'UncertaintyModel',
-    'GaussianUncertainty',
-    'UniformUncertainty',
-    'WindUncertainty',
-    'ThreatUncertainty',
-    'UncertaintyPropagation',
-    # Chance constraints
-    'ChanceConstraint',
-    'ProbabilisticSafetyConstraint',
-    'RobustTrajectoryOptimizer',
-    'ChanceConstrainedPlanner',
+    "UncertainParameter",
+    "ChanceConstraint",
+    "RobustPlanner",
+    "ScenarioBasedPlanner",
 ]
+
+
+
