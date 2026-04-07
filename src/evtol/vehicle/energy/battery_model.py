@@ -1,420 +1,583 @@
 """
-Battery and Energy Management System for eVTOL
+Battery Model - Electrochemical and Thermal Modeling
 
-This module implements realistic battery modeling with:
-1. Voltage sag under load (voltage × current nonlinearity)
-2. Thermal effects (temperature-dependent internal resistance)
-3. Battery state of charge (SOC) tracking with cycle counting
-4. Power budget and energy reserve monitoring
-5. Thermal management integration
-
-Theory
-======
-
-Battery Electrochemistry (Lithium-Ion):
-
-Terminal Voltage Model:
-    V_terminal = E₀(SOC) - I·R_internal(T, I) - ΔV_concentration
-
-where:
-- E₀(SOC): Open-circuit voltage (SOC-dependent)
-- R_internal(T, I): Temperature and current-dependent internal resistance
-- ΔV_concentration: Concentration polarization (rate-dependent voltage drop)
-
-Typical LiPo Cell (3.7V nominal):
-- Fully charged: 4.2V (100% SOC)
-- Nominal: 3.7V (50% SOC)
-- Depleted: 2.8V (0% SOC)
-
-Internal Resistance Model:
-    R(T, I) = R₀ + α·(T - T_ref)  [temperature dependent]
-    
-    Where R₀ also increases with aging and cycling.
-
-Power Dissipation:
-    P_loss = I²·R_internal  [heat generation in cell]
-    
-Thermal Model:
-    C_thermal·dT/dt = P_loss - h·(T - T_ambient)
-    
-    Steady-state: ΔT = P_loss / h
-
-State of Charge (SOC) Tracking:
-    SOC(t) = SOC(0) - ∫ I(τ)/Q_capacity dτ
-    
-    Coulomb counting: Ampere-hour integration
-    
-Depth of Discharge (DoD):
-    DoD = 100% - SOC  [percentage]
-    
-Cycle Life Model:
-    N_cycles(DoD) ≈ A / (DoD^B)  where A, B from datasheet
-    
-    Example: OEM may spec 1000 cycles @ 100% DoD, → 5000 cycles @ 50% DoD
-
-References
-==========
-
-[1] Chen, M., Rincon-Mora, G.A. (2006). "Accurate Electrical Battery Model
-    Capable of Predicting Runtime and I-V Performance." IEEE Trans. Energy
-    Conversion, vol. 21, no. 2.
-
-[2] Plett, G.L. (2015). Battery Management Systems, Vol. 1: Battery Modeling.
-    Artech House. Chapters 2-4 (equivalent circuit models).
-
-[3] Vetter, J., et al. (2005). "Ageing mechanisms in lithium-ion batteries."
-    Journal of Power Sources, vol. 147, pp. 269-281.
-
-[4] NASA RP-1257 (1998). Design and Development of the Space Shuttle
-    Auxiliary Power Unit. Section 4 (power system architecture).
+This module implements a comprehensive battery model that includes:
+- State of charge (SOC) dynamics
+- Temperature effects on performance
+- Voltage modeling with internal resistance
+- C-rate limitations and efficiency
+- Thermal management
 """
 
-from __future__ import annotations
 import numpy as np
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 import logging
+from dataclasses import dataclass
+from scipy.interpolate import interp1d
 
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class BatteryConfig:
-    """
-    Battery pack configuration.
-    
-    Attributes:
-        nominal_voltage: Nominal pack voltage [V]
-        min_voltage: Cutoff voltage (minimum safe) [V]
-        max_voltage: Maximum charge voltage [V]
-        capacity_wh: Total energy capacity [Wh]
-        capacity_ah: Total charge capacity [Ah]
-        internal_resistance: Internal resistance @ 25°C [Ω]
-        num_cells: Number of series cells
-        num_parallel_modules: Number of parallel modules
-        max_continuous_current: Max continuous discharge [A]
-        max_peak_current: Max peak current (5-10s) [A]
-        thermal_capacity: Thermal mass [J/°C]
-        thermal_conductance: Heat dissipation [W/°C]
-    """
-    nominal_voltage: float = 48.0      # V (12S LiPo)
-    min_voltage: float = 40.0          # V (cutoff)
-    max_voltage: float = 50.4          # V (fully charged)
-    capacity_wh: float = 2400.0        # Wh (energy)
-    capacity_ah: float = 50.0          # Ah (charge)
-    internal_resistance: float = 0.05  # Ω @ 25°C
-    num_cells: int = 12                # Series
-    num_parallel_modules: int = 2
-    max_continuous_current: float = 200.0  # A
-    max_peak_current: float = 300.0    # A
-    thermal_capacity: float = 500.0    # J/°C
-    thermal_conductance: float = 10.0  # W/°C
+try:
+    from ..utils.config import VehicleConfig
+except ImportError:
+    # Fallback for direct imports
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).parent.parent))
+    from utils.config import VehicleConfig
 
 
 @dataclass
 class BatteryState:
-    """Battery pack operating state."""
-    # Electrical state
-    voltage: float = 48.0              # Terminal voltage [V]
-    voltage_unloaded: float = 48.0     # Open-circuit voltage [V]
-    current: float = 0.0               # Discharge current [A]
-    power: float = 0.0                 # Power draw [W]
-    
-    # Energy state
-    soc: float = 1.0                   # State of charge [0, 1]
-    soh: float = 1.0                   # State of health [0, 1]
-    energy_remaining: float = 2400.0   # [Wh]
-    coulombs_remaining: float = 50.0   # [Ah]
-    
-    # Thermal state
-    temperature: float = 25.0          # Pack temperature [°C]
-    heat_dissipation: float = 0.0      # Heat generation [W]
-    
-    # Cycle tracking
-    cycle_count: float = 0.0           # Equivalent full cycles
-    depth_of_discharge: float = 0.0    # Current DoD [%]
-    
-    # Status
-    is_charging: bool = False
-    is_discharging: bool = True
-    is_healthy: bool = True
-    warning_flags: str = ""
+    """Battery state variables"""
+    soc: float  # State of charge (0-1)
+    temperature: float  # Temperature in Celsius
+    voltage: float  # Terminal voltage in Volts
+    current: float  # Current in Amperes
+    power: float  # Power in Watts
+    internal_resistance: float  # Internal resistance in Ohms
 
 
-class BatteryPack:
+class BatteryModel:
     """
-    Lithium-ion battery pack model with voltage sag and thermal effects.
+    Comprehensive battery model with electrochemical and thermal effects.
     
-    Implements:
-    - Nonlinear voltage vs SOC with load current
-    - Temperature-dependent internal resistance
-    - Thermal dynamics with heat dissipation
-    - Energy accounting via Coulomb counting
-    - Cycle life estimation
-    
-    Usage:
-        battery = BatteryPack(config)
-        state = battery.update(current_draw=100, dt=0.01)
-        power_available = state.voltage * state.current
-        energy_remaining_wh = state.energy_remaining
+    This model includes:
+    - SOC dynamics with coulombic efficiency
+    - Temperature-dependent capacity and resistance
+    - Voltage modeling with open-circuit voltage
+    - C-rate limitations and power constraints
+    - Thermal dynamics with cooling/heating
     """
     
-    def __init__(self, config: BatteryConfig, ambient_temp: float = 25.0):
+    def __init__(self, config: VehicleConfig):
         """
-        Initialize battery pack model.
+        Initialize battery model with configuration.
         
         Args:
-            config: Battery configuration
-            ambient_temp: Ambient temperature [°C]
+            config: Vehicle configuration containing battery parameters
         """
         self.config = config
-        self.T_ambient = ambient_temp
+        self.logger = logging.getLogger(__name__)
         
-        # Initialize state at full charge
+        # Battery parameters
+        self.chemistry = config.battery.chemistry
+        self.capacity_nominal = config.battery.capacity_nominal  # Ah
+        self.voltage_nominal = config.battery.voltage_nominal  # V
+        self.voltage_range = config.battery.voltage_range  # [V_min, V_max]
+        
+        # Thermal parameters
+        self.mass = config.battery.thermal.mass  # kg
+        self.specific_heat = config.battery.thermal.specific_heat  # J/kg·K
+        self.thermal_conductivity = config.battery.thermal.thermal_conductivity  # W/m·K
+        self.cooling_capacity = config.battery.thermal.cooling_capacity  # W
+        
+        # Limits
+        self.max_discharge_rate = config.battery.limits.max_discharge_rate  # C
+        self.max_charge_rate = config.battery.limits.max_charge_rate  # C
+        self.min_soc = config.battery.limits.min_soc
+        self.max_soc = config.battery.limits.max_soc
+        self.min_temperature = config.battery.limits.min_temperature  # °C
+        self.max_temperature = config.battery.limits.max_temperature  # °C
+        
+        # Current state
         self.state = BatteryState(
-            soc=1.0,
-            voltage=config.max_voltage,
-            energy_remaining=config.capacity_wh,
-            temperature=ambient_temp,
+            soc=0.8,  # Default 80% SOC
+            temperature=20.0,  # Default 20°C
+            voltage=self.voltage_nominal,  # Will be updated by _calculate_ocv
+            current=0.0,
+            power=0.0,
+            internal_resistance=0.1
         )
         
-        # OCV (Open Circuit Voltage) lookup table (SOC → V)
-        self._build_ocv_table()
+        # Load battery characteristics from dataset
+        self._load_battery_characteristics()
         
-        logger.info(
-            f"BatteryPack initialized: {config.capacity_wh}Wh, "
-            f"{config.nominal_voltage}V nominal, "
-            f"R_int={config.internal_resistance}Ω @ 25°C"
-        )
+        # Update initial voltage based on SOC
+        self.state.voltage = self._calculate_ocv(self.state.soc)
+        
+        self.logger.info(f"Battery model initialized: {self.chemistry}, "
+                        f"{self.capacity_nominal}Ah, {self.voltage_nominal}V")
     
-    def _build_ocv_table(self):
-        """
-        Build open-circuit voltage vs SOC table.
+    def _load_battery_characteristics(self) -> None:
+        """Load battery characteristics from the dataset."""
+        # This would load from the battery_specs.csv file
+        # For now, we'll use synthetic data based on the chemistry
         
-        Typical LiPo curve:
-        SOC    100%   90%    80%    70%    50%    30%    20%    10%    0%
-        V/cell 4.20   4.15   4.08   4.02   3.80   3.65   3.60   3.50   2.80
-        """
-        self.soc_lookup = np.array([0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0])
-        
-        # Voltage per cell (3.7V nominal for LiPo)
-        # Scale by number of cells for pack voltage
-        v_per_cell = np.array([2.80, 3.50, 3.60, 3.65, 3.80, 4.02, 4.08, 4.15, 4.20])
-        self.ocv_lookup = v_per_cell * self.config.num_cells
-        
-        logger.debug(f"OCV lookup table: {len(self.soc_lookup)} points")
+        if self.chemistry == "Li-ion_NMC":
+            self._setup_li_ion_nmc_characteristics()
+        elif self.chemistry == "Li-S":
+            self._setup_li_s_characteristics()
+        elif self.chemistry == "SolidState":
+            self._setup_solid_state_characteristics()
+        else:
+            self.logger.warning(f"Unknown battery chemistry: {self.chemistry}")
+            self._setup_li_ion_nmc_characteristics()  # Default
     
-    def _get_ocv(self, soc: float) -> float:
+    def _setup_li_ion_nmc_characteristics(self) -> None:
+        """Setup Li-ion NMC battery characteristics."""
+        # Temperature-dependent capacity (from dataset)
+        self.temp_capacity_data = {
+            -20: 0.6,   # 60% capacity at -20°C
+            0: 0.8,     # 80% capacity at 0°C
+            20: 1.0,    # 100% capacity at 20°C
+            40: 0.8     # 80% capacity at 40°C
+        }
+        
+        # C-rate dependent efficiency
+        self.c_rate_efficiency_data = {
+            0.5: 0.96,  # 96% efficiency at 0.5C
+            1.0: 0.95,  # 95% efficiency at 1C
+            2.0: 0.93,  # 93% efficiency at 2C
+            5.0: 0.87   # 87% efficiency at 5C
+        }
+        
+        # Open circuit voltage vs SOC (scaled to pack voltage)
+        # For 400V pack, assuming ~100 cells in series (400V/4V per cell)
+        cells_in_series = int(self.voltage_nominal / 4.0)  # ~100 cells for 400V
+        self.ocv_soc_data = np.array([
+            [0.0, 3.0 * cells_in_series],   # 0% SOC, 300V
+            [0.1, 3.2 * cells_in_series],   # 10% SOC, 320V
+            [0.2, 3.4 * cells_in_series],   # 20% SOC, 340V
+            [0.3, 3.5 * cells_in_series],   # 30% SOC, 350V
+            [0.4, 3.6 * cells_in_series],   # 40% SOC, 360V
+            [0.5, 3.7 * cells_in_series],   # 50% SOC, 370V
+            [0.6, 3.8 * cells_in_series],   # 60% SOC, 380V
+            [0.7, 3.9 * cells_in_series],   # 70% SOC, 390V
+            [0.8, 4.0 * cells_in_series],   # 80% SOC, 400V
+            [0.9, 4.1 * cells_in_series],   # 90% SOC, 410V
+            [1.0, 4.2 * cells_in_series]    # 100% SOC, 420V
+        ])
+        
+        # Internal resistance vs SOC and temperature (scaled for pack)
+        # Resistance scales with number of cells in series
+        cells_in_series = int(self.voltage_nominal / 4.0)
+        self.resistance_data = {
+            'soc': np.array([0.0, 0.2, 0.5, 0.8, 1.0]),
+            'temp': np.array([-20, 0, 20, 40]),
+            'resistance': np.array([
+                np.array([0.2, 0.15, 0.1, 0.12, 0.2]) * cells_in_series,   # -20°C
+                np.array([0.15, 0.1, 0.08, 0.1, 0.15]) * cells_in_series,  # 0°C
+                np.array([0.1, 0.08, 0.05, 0.08, 0.1]) * cells_in_series,  # 20°C
+                np.array([0.12, 0.1, 0.08, 0.1, 0.12]) * cells_in_series   # 40°C
+            ])
+        }
+    
+    def _setup_li_s_characteristics(self) -> None:
+        """Setup Li-S battery characteristics."""
+        # Li-S has higher energy density but different characteristics
+        self.temp_capacity_data = {
+            -20: 0.7,   # 70% capacity at -20°C
+            0: 0.9,     # 90% capacity at 0°C
+            20: 1.0,    # 100% capacity at 20°C
+            40: 0.9     # 90% capacity at 40°C
+        }
+        
+        self.c_rate_efficiency_data = {
+            0.5: 0.96,  # 96% efficiency at 0.5C
+            1.0: 0.95,  # 95% efficiency at 1C
+            2.0: 0.93,  # 93% efficiency at 2C
+            5.0: 0.87   # 87% efficiency at 5C
+        }
+        
+        # Li-S has different voltage characteristics (scaled to pack voltage)
+        cells_in_series = int(self.voltage_nominal / 3.0)  # ~133 cells for 400V
+        self.ocv_soc_data = np.array([
+            [0.0, 2.0 * cells_in_series],   # 0% SOC, 266V
+            [0.1, 2.1 * cells_in_series],   # 10% SOC, 280V
+            [0.2, 2.2 * cells_in_series],   # 20% SOC, 293V
+            [0.3, 2.3 * cells_in_series],   # 30% SOC, 307V
+            [0.4, 2.4 * cells_in_series],   # 40% SOC, 320V
+            [0.5, 2.5 * cells_in_series],   # 50% SOC, 333V
+            [0.6, 2.6 * cells_in_series],   # 60% SOC, 347V
+            [0.7, 2.7 * cells_in_series],   # 70% SOC, 360V
+            [0.8, 2.8 * cells_in_series],   # 80% SOC, 373V
+            [0.9, 2.9 * cells_in_series],   # 90% SOC, 387V
+            [1.0, 3.0 * cells_in_series]    # 100% SOC, 400V
+        ])
+    
+    def _setup_solid_state_characteristics(self) -> None:
+        """Setup solid state battery characteristics."""
+        # Solid state batteries have different characteristics
+        self.temp_capacity_data = {
+            -20: 0.8,   # 80% capacity at -20°C
+            0: 0.95,    # 95% capacity at 0°C
+            20: 1.0,    # 100% capacity at 20°C
+            40: 0.95    # 95% capacity at 40°C
+        }
+        
+        self.c_rate_efficiency_data = {
+            0.5: 0.98,  # 98% efficiency at 0.5C
+            1.0: 0.97,  # 97% efficiency at 1C
+            2.0: 0.95,  # 95% efficiency at 2C
+            5.0: 0.90   # 90% efficiency at 5C
+        }
+        
+        # Solid state voltage characteristics (scaled to pack voltage)
+        cells_in_series = int(self.voltage_nominal / 3.5)  # ~114 cells for 400V
+        self.ocv_soc_data = np.array([
+            [0.0, 2.5 * cells_in_series],   # 0% SOC, 285V
+            [0.1, 2.6 * cells_in_series],   # 10% SOC, 296V
+            [0.2, 2.7 * cells_in_series],   # 20% SOC, 308V
+            [0.3, 2.8 * cells_in_series],   # 30% SOC, 319V
+            [0.4, 2.9 * cells_in_series],   # 40% SOC, 331V
+            [0.5, 3.0 * cells_in_series],   # 50% SOC, 342V
+            [0.6, 3.1 * cells_in_series],   # 60% SOC, 353V
+            [0.7, 3.2 * cells_in_series],   # 70% SOC, 365V
+            [0.8, 3.3 * cells_in_series],   # 80% SOC, 376V
+            [0.9, 3.4 * cells_in_series],   # 90% SOC, 388V
+            [1.0, 3.5 * cells_in_series]    # 100% SOC, 399V
+        ])
+    
+    def set_initial_state(self, soc: float, temperature: float) -> None:
         """
-        Get open-circuit voltage for given SOC via interpolation.
+        Set initial battery state.
         
         Args:
-            soc: State of charge [0, 1]
-        
-        Returns:
-            Open-circuit voltage [V]
+            soc: Initial state of charge (0-1)
+            temperature: Initial temperature in Celsius
         """
-        soc = np.clip(soc, 0.0, 1.0)
-        ocv = np.interp(soc, self.soc_lookup, self.ocv_lookup)
+        self.state.soc = np.clip(soc, self.min_soc, self.max_soc)
+        self.state.temperature = np.clip(temperature, self.min_temperature, self.max_temperature)
+        self.state.voltage = self._calculate_ocv(self.state.soc)
+        self.state.current = 0.0
+        self.state.power = 0.0
+        self.state.internal_resistance = self._calculate_internal_resistance(
+            self.state.soc, self.state.temperature
+        )
+        
+        self.logger.info(f"Battery initial state: SOC={self.state.soc:.3f}, "
+                        f"T={self.state.temperature:.1f}°C, V={self.state.voltage:.1f}V")
+    
+    def update_state(self, power_demand: float, dt: float) -> None:
+        """
+        Update battery state based on power demand.
+        
+        Args:
+            power_demand: Power demand in Watts (positive for discharge)
+            dt: Time step in seconds
+        """
+        # Calculate current based on power demand
+        current = self._calculate_current_from_power(power_demand)
+        
+        # Apply current limits
+        current = self._apply_current_limits(current)
+        
+        # Update SOC
+        self._update_soc(current, dt)
+        
+        # Update temperature
+        self._update_temperature(current, dt)
+        
+        # Update voltage and resistance
+        self.state.voltage = self._calculate_terminal_voltage(current)
+        self.state.internal_resistance = self._calculate_internal_resistance(
+            self.state.soc, self.state.temperature
+        )
+        
+        # Update power and current
+        self.state.current = current
+        self.state.power = self.state.voltage * current
+        
+        # Check for critical conditions
+        self._check_critical_conditions()
+    
+    def _calculate_current_from_power(self, power_demand: float) -> float:
+        """
+        Calculate current from power demand using simplified method.
+        
+        Args:
+            power_demand: Power demand in Watts
+            
+        Returns:
+            Current in Amperes
+        """
+        if abs(power_demand) < 1e-6:  # Near zero power
+            return 0.0
+        
+        # Use open circuit voltage for current calculation to avoid instability
+        ocv = self._calculate_ocv(self.state.soc)
+        if abs(ocv) < 1e-6:
+            return 0.0
+        
+        # Simple current calculation
+        current = power_demand / ocv
+        
+        # Apply reasonable limits to prevent instability
+        max_current = self.capacity_nominal * self.max_discharge_rate
+        current = np.clip(current, -max_current, max_current)
+        
+        return current
+    
+    def _apply_current_limits(self, current: float) -> float:
+        """
+        Apply current limits based on C-rate and temperature.
+        
+        Args:
+            current: Desired current in Amperes
+            
+        Returns:
+            Limited current in Amperes
+        """
+        # Get temperature-dependent capacity
+        capacity_factor = self._get_temperature_capacity_factor(self.state.temperature)
+        effective_capacity = self.capacity_nominal * capacity_factor
+        
+        # Calculate C-rate
+        c_rate = abs(current) / effective_capacity
+        
+        # Apply C-rate limits
+        if current > 0:  # Discharge
+            max_c_rate = self.max_discharge_rate
+        else:  # Charge
+            max_c_rate = self.max_charge_rate
+        
+        if c_rate > max_c_rate:
+            current = np.sign(current) * max_c_rate * effective_capacity
+        
+        return current
+    
+    def _update_soc(self, current: float, dt: float) -> None:
+        """
+        Update state of charge based on current.
+        
+        Args:
+            current: Current in Amperes (positive for discharge)
+            dt: Time step in seconds
+        """
+        # Get temperature-dependent capacity
+        capacity_factor = self._get_temperature_capacity_factor(self.state.temperature)
+        effective_capacity = self.capacity_nominal * capacity_factor
+        
+        # Calculate C-rate for efficiency lookup
+        c_rate = abs(current) / effective_capacity
+        
+        # Get coulombic efficiency
+        efficiency = self._get_coulombic_efficiency(c_rate)
+        
+        # Update SOC (negative current = charging, positive = discharging)
+        soc_change = -current * dt / (effective_capacity * 3600)  # Convert Ah to As
+        soc_change *= efficiency  # Apply coulombic efficiency
+        
+        self.state.soc += soc_change
+        self.state.soc = np.clip(self.state.soc, self.min_soc, self.max_soc)
+    
+    def _update_temperature(self, current: float, dt: float) -> None:
+        """
+        Update battery temperature based on heat generation and cooling.
+        
+        Args:
+            current: Current in Amperes
+            dt: Time step in seconds
+        """
+        # Calculate heat generation (Joule heating + electrochemical heating)
+        joule_heating = current**2 * self.state.internal_resistance
+        electrochemical_heating = abs(current) * 0.1  # Simplified model
+        heat_generation = joule_heating + electrochemical_heating
+        
+        # Calculate cooling (simplified thermal model)
+        temp_diff = self.state.temperature - 20.0  # Ambient temperature
+        cooling_rate = self.cooling_capacity * (temp_diff / 40.0)  # Proportional cooling
+        
+        # Update temperature
+        net_heat = heat_generation - cooling_rate
+        temp_change = net_heat * dt / (self.mass * self.specific_heat)
+        
+        self.state.temperature += temp_change
+        self.state.temperature = np.clip(
+            self.state.temperature, self.min_temperature, self.max_temperature
+        )
+    
+    def _calculate_terminal_voltage(self, current: float) -> float:
+        """
+        Calculate terminal voltage based on current.
+        
+        Args:
+            current: Current in Amperes
+            
+        Returns:
+            Terminal voltage in Volts
+        """
+        # Open circuit voltage
+        ocv = self._calculate_ocv(self.state.soc)
+        
+        # Simplified internal resistance (avoid complex interpolation)
+        base_resistance = 0.1  # Base resistance in Ohms
+        resistance = base_resistance * (self.voltage_nominal / 400.0)  # Scale with voltage
+        
+        # Voltage drop
+        voltage_drop = current * resistance
+        
+        # Terminal voltage with reasonable bounds
+        terminal_voltage = ocv - voltage_drop
+        
+        # Ensure voltage stays within reasonable bounds
+        min_voltage = self.voltage_range[0] * 0.5  # Allow some margin
+        max_voltage = self.voltage_range[1] * 1.5   # Allow some margin
+        terminal_voltage = np.clip(terminal_voltage, min_voltage, max_voltage)
+        
+        return terminal_voltage
+    
+    def _calculate_ocv(self, soc: float) -> float:
+        """
+        Calculate open circuit voltage from SOC.
+        
+        Args:
+            soc: State of charge (0-1)
+            
+        Returns:
+            Open circuit voltage in Volts
+        """
+        # Interpolate from OCV-SOC curve
+        soc_values = self.ocv_soc_data[:, 0]
+        voltage_values = self.ocv_soc_data[:, 1]
+        
+        ocv = np.interp(soc, soc_values, voltage_values)
         return ocv
     
-    def _get_internal_resistance(self, temperature: float, current: float) -> float:
+    def _calculate_internal_resistance(self, soc: float, temperature: float) -> float:
         """
-        Get temperature and current-dependent internal resistance.
-        
-        Model:
-        - Base resistance at 25°C: R₀
-        - Temperature effect: +0.5% per °C above 25°C
-        - High current effect: increases slightly (electrochemical effects)
+        Calculate internal resistance from SOC and temperature.
         
         Args:
-            temperature: Cell temperature [°C]
-            current: Discharge current [A]
-        
+            soc: State of charge (0-1)
+            temperature: Temperature in Celsius
+            
         Returns:
-            Internal resistance [Ω]
+            Internal resistance in Ohms
         """
-        # Base temperature dependence
-        dT = temperature - 25.0
-        temp_factor = 1.0 + 0.005 * dT  # 0.5% per °C
+        # Interpolate from resistance lookup table
+        soc_values = self.resistance_data['soc']
+        temp_values = self.resistance_data['temp']
+        resistance_table = self.resistance_data['resistance']
         
-        R_base = self.config.internal_resistance * temp_factor
+        # Find temperature index
+        temp_idx = np.searchsorted(temp_values, temperature)
+        if temp_idx == 0:
+            temp_idx = 1
+        elif temp_idx >= len(temp_values):
+            temp_idx = len(temp_values) - 1
         
-        # Current-dependent resistance (high current effects)
-        # Typically small for well-designed packs
-        I_normalized = abs(current) / self.config.max_continuous_current
-        current_factor = 1.0 + 0.1 * I_normalized**2  # Quadratic for high current
+        # Interpolate between temperature points
+        if temp_idx < len(temp_values):
+            temp_ratio = (temperature - temp_values[temp_idx-1]) / (temp_values[temp_idx] - temp_values[temp_idx-1])
+            resistance_low = np.interp(soc, soc_values, resistance_table[temp_idx-1])
+            resistance_high = np.interp(soc, soc_values, resistance_table[temp_idx])
+            resistance = resistance_low + temp_ratio * (resistance_high - resistance_low)
+        else:
+            resistance = np.interp(soc, soc_values, resistance_table[-1])
         
-        R_total = R_base * current_factor
-        
-        return R_total
+        return resistance
     
-    def update(
-        self,
-        current_draw: float,
-        dt: float = 0.01,
-    ) -> BatteryState:
+    def _get_temperature_capacity_factor(self, temperature: float) -> float:
         """
-        Update battery state for one time step.
-        
-        Implements:
-        1. Voltage sag calculation (load-dependent)
-        2. Thermal dynamics
-        3. Energy accounting (Coulomb counting)
-        4. SOH degradation
+        Get capacity factor based on temperature.
         
         Args:
-            current_draw: Current being drawn [A] (positive = discharge)
-            dt: Time step [s]
-        
+            temperature: Temperature in Celsius
+            
         Returns:
-            Updated BatteryState
+            Capacity factor (0-1)
         """
-        # Limit current to maximum
-        current_limited = np.clip(current_draw, 0.0, self.config.max_peak_current)
+        temp_values = list(self.temp_capacity_data.keys())
+        capacity_values = list(self.temp_capacity_data.values())
         
-        # Get open-circuit voltage at current SOC
-        ocv = self._get_ocv(self.state.soc)
-        
-        # Get temperature-dependent internal resistance
-        r_int = self._get_internal_resistance(self.state.temperature, current_limited)
-        
-        # Calculate terminal voltage (voltage sag)
-        # V_terminal = OCV - I·R_internal
-        voltage_drop = current_limited * r_int
-        V_terminal = ocv - voltage_drop
-        
-        # Clamp to limits
-        V_terminal = np.clip(
-            V_terminal,
-            self.config.min_voltage,
-            self.config.max_voltage
-        )
-        
-        # Power calculations
-        P_out = V_terminal * current_limited  # Power delivered
-        P_loss = current_limited**2 * r_int   # Heat in battery
-        
-        # Thermal dynamics: C·dT/dt = P_loss - h·(T - T_amb)
-        tau_thermal = self.config.thermal_capacity / self.config.thermal_conductance
-        T_ss = self.T_ambient + P_loss / self.config.thermal_conductance
-        
-        dT = (T_ss - self.state.temperature) * (dt / (tau_thermal + dt))
-        temp_new = self.state.temperature + dT
-        
-        # Energy accounting (Coulomb counting)
-        # dE = V·I·dt [Joules]
-        # dSOC = -I·dt / Q_capacity
-        energy_discharged = V_terminal * current_limited * dt / 3600  # Wh (convert from J)
-        charge_discharged = current_limited * dt / 3600  # Ah
-        
-        soc_new = self.state.soc - (charge_discharged / self.config.capacity_ah)
-        soc_new = np.clip(soc_new, 0.0, 1.0)
-        
-        energy_remaining = soc_new * self.config.capacity_wh
-        coulombs_remaining = soc_new * self.config.capacity_ah
-        
-        # Depth of discharge (current)
-        dod_current = (1.0 - soc_new) * 100
-        
-        # SOH degradation from cycling
-        # Simplified: 0.1% degradation per full cycle equivalent
-        # Accelerated if charged frequently at high DoD
-        aging_rate = 0.001 * (1.0 + 2.0 * dod_current / 100)  # Per cycle
-        charge_cycles_this_step = charge_discharged / self.config.capacity_ah
-        soh_new = self.state.soh - (aging_rate * charge_cycles_this_step)
-        soh_new = max(soh_new, 0.80)  # Minimum 80% SOH
-        
-        # Cycle count (fractional, per full cycle at current DoD)
-        cycle_increment = charge_discharged / self.config.capacity_ah
-        cycle_count_new = self.state.cycle_count + cycle_increment
-        
-        # Health warnings
-        warning_flags = ""
-        if V_terminal < self.config.nominal_voltage * 0.85:
-            warning_flags += "LOW_VOLTAGE "
-        if temp_new > 60.0:
-            warning_flags += "HIGH_TEMP "
-        if soc_new < 0.10:
-            warning_flags += "LOW_SOC "
-        if soh_new < 0.90:
-            warning_flags += "DEGRADATION "
-        
-        # Update state
-        self.state.current = current_limited
-        self.state.power = P_out
-        self.state.voltage = V_terminal
-        self.state.voltage_unloaded = ocv
-        
-        self.state.soc = soc_new
-        self.state.soh = soh_new
-        self.state.energy_remaining = energy_remaining
-        self.state.coulombs_remaining = coulombs_remaining
-        
-        self.state.temperature = temp_new
-        self.state.heat_dissipation = P_loss
-        
-        self.state.cycle_count = cycle_count_new
-        self.state.depth_of_discharge = dod_current
-        
-        self.state.is_discharging = current_limited > 1.0
-        self.state.is_healthy = soc_new > 0.05 and soh_new > 0.80
-        self.state.warning_flags = warning_flags
-        
-        # Check critical conditions
-        if V_terminal < self.config.min_voltage or soc_new <= 0.0:
-            logger.critical("Battery: Cutoff voltage reached or depleted")
-            self.state.is_healthy = False
-        
-        return self.state
+        capacity_factor = np.interp(temperature, temp_values, capacity_values)
+        return capacity_factor
     
-    def get_power_available(self) -> float:
+    def _get_coulombic_efficiency(self, c_rate: float) -> float:
         """
-        Get instantaneous power available at current voltage.
-        
-        Returns:
-            Power capacity [W] = V × I_max
-        """
-        return self.state.voltage * self.config.max_continuous_current
-    
-    def get_energy_remaining(self) -> float:
-        """Get remaining energy [Wh]."""
-        return self.state.energy_remaining
-    
-    def get_endurance_estimate(self, avg_power_draw: float) -> float:
-        """
-        Estimate flight endurance at given constant power draw.
+        Get coulombic efficiency based on C-rate.
         
         Args:
-            avg_power_draw: Average power consumption [W]
-        
+            c_rate: C-rate
+            
         Returns:
-            Estimated flight time [s]
+            Coulombic efficiency (0-1)
         """
-        if avg_power_draw < 100:  # Prevent division by zero
-            return float('inf')
+        c_rate_values = list(self.c_rate_efficiency_data.keys())
+        efficiency_values = list(self.c_rate_efficiency_data.values())
         
-        # Simple estimate: E / P, but account for voltage sag
-        # More accurate: integrate power over discharge curve
-        endurance = self.state.energy_remaining * 3600 / avg_power_draw
-        
-        return endurance
+        efficiency = np.interp(c_rate, c_rate_values, efficiency_values)
+        return efficiency
     
-    def estimate_cycle_life_remaining(self) -> float:
-        """
-        Estimate remaining cycle life based on current SOH.
+    def _check_critical_conditions(self) -> None:
+        """Check for critical battery conditions."""
+        if self.state.soc < 0.05:  # 5% SOC
+            self.logger.warning("Battery critically low - 5% SOC")
         
-        Datasheet example: 1000 cycles @ 100% DoD
-        Assume roughly exponential relationship.
+        if self.state.temperature > 55.0:  # 55°C
+            self.logger.warning("Battery overheating - 55°C")
         
-        Returns:
-            Estimated remaining full cycles
-        """
-        if self.state.soh < 0.80:
-            return 0.0  # Battery considered end-of-life
+        if self.state.voltage < self.voltage_range[0]:
+            self.logger.warning(f"Battery voltage below minimum: {self.state.voltage:.1f}V")
+    
+    def get_state_of_charge(self) -> float:
+        """Get current state of charge."""
+        return self.state.soc
+    
+    def get_temperature(self) -> float:
+        """Get current temperature."""
+        return self.state.temperature
+    
+    def get_voltage(self) -> float:
+        """Get current terminal voltage."""
+        return self.state.voltage
+    
+    def get_current(self) -> float:
+        """Get current current."""
+        return self.state.current
+    
+    def get_power(self) -> float:
+        """Get current power."""
+        return self.state.power
+    
+    def get_available_power(self) -> float:
+        """Get maximum available power."""
+        # Calculate maximum current at current SOC and temperature
+        capacity_factor = self._get_temperature_capacity_factor(self.state.temperature)
+        effective_capacity = self.capacity_nominal * capacity_factor
+        max_current = self.max_discharge_rate * effective_capacity
         
-        # Simplified: assume 2000 total cycles available @ 80% SOH
-        # Linear degradation assumption
-        cycles_per_percent_soh = 20  # 2000 cycles / (100% - 80%)
-        remaining_cycles = (self.state.soh - 0.80) * cycles_per_percent_soh
+        # Calculate maximum power
+        max_voltage = self._calculate_terminal_voltage(-max_current)  # Negative for discharge
+        max_power = max_voltage * max_current
         
-        return remaining_cycles
+        return max_power
+    
+    def get_remaining_energy(self) -> float:
+        """Get remaining energy in Wh."""
+        capacity_factor = self._get_temperature_capacity_factor(self.state.temperature)
+        effective_capacity = self.capacity_nominal * capacity_factor
+        remaining_capacity = effective_capacity * self.state.soc
+        remaining_energy = remaining_capacity * self.state.voltage
+        
+        return remaining_energy
+    
+    def get_soc_derivative(self) -> float:
+        """Get SOC derivative for integration."""
+        if abs(self.state.current) < 1e-6:
+            return 0.0
+        
+        capacity_factor = self._get_temperature_capacity_factor(self.state.temperature)
+        effective_capacity = self.capacity_nominal * capacity_factor
+        c_rate = abs(self.state.current) / effective_capacity
+        efficiency = self._get_coulombic_efficiency(c_rate)
+        
+        soc_derivative = -self.state.current / (effective_capacity * 3600) * efficiency
+        return soc_derivative
+    
+    def get_temperature_derivative(self) -> float:
+        """Get temperature derivative for integration."""
+        # Heat generation
+        joule_heating = self.state.current**2 * self.state.internal_resistance
+        electrochemical_heating = abs(self.state.current) * 0.1
+        heat_generation = joule_heating + electrochemical_heating
+        
+        # Cooling
+        temp_diff = self.state.temperature - 20.0
+        cooling_rate = self.cooling_capacity * (temp_diff / 40.0)
+        
+        # Temperature derivative
+        net_heat = heat_generation - cooling_rate
+        temp_derivative = net_heat / (self.mass * self.specific_heat)
+        
+        return temp_derivative
