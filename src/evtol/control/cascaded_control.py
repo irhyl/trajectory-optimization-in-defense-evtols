@@ -232,9 +232,6 @@ References
 
 [4] Slotine, J.-J.E., Li, W. (1991). Applied Nonlinear Control. 
     Prentice Hall. (Lyapunov theory)
-
-Author: Defense eVTOL Research Team
-License: MIT
 """
 
 from __future__ import annotations
