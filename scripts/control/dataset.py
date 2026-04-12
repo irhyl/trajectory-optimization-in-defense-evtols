@@ -340,11 +340,12 @@ def simulate_mission(row: pd.Series) -> dict:
             vy_ref = 0.0
 
         # ── Position controller → velocity command ─────────────────────────────
-        # pos_err_x: expected position within phase minus actual position.
-        # Using phase_time_elapsed and px_phase_start ensures the reference
-        # resets at each phase transition — eliminates the cumulative artifact.
+        # px_phase_ref is the INTEGRAL of vx_ref*dt accumulated since phase start.
+        # Using += vx_ref * DT (Euler integration) is correct when vx_ref is
+        # ramping.  The earlier formula (vx_ref * t) multiplied instantaneous
+        # velocity by elapsed time — an overestimate that grows without bound.
         if current_phase == "CRUISE":
-            px_phase_ref = vx_ref * phase_time_elapsed
+            px_phase_ref += vx_ref * DT          # integrate reference trajectory
             pos_err_x = px_phase_ref - (px - px_phase_start)
         else:
             pos_err_x = 0.0
