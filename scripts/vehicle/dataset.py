@@ -34,8 +34,12 @@ warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.WARNING)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parent.parent
-SRC  = ROOT / "outputs" / "planning_dataset" / "test_final.parquet"
+ROOT = Path(__file__).resolve().parent.parent.parent
+# Use the new planning dataset (with distance-decay threat gradient) if available,
+# falling back to the original test_final.parquet
+_new_plan = ROOT / "outputs" / "planning_dataset" / "planning_dataset.parquet"
+_old_plan = ROOT / "outputs" / "planning_dataset" / "test_final.parquet"
+SRC  = _new_plan if _new_plan.exists() else _old_plan
 OUT  = ROOT / "outputs" / "vehicle"
 OUT.mkdir(parents=True, exist_ok=True)
 
