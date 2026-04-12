@@ -86,6 +86,92 @@ ENERGY_PER_METER = 0.12    # rough Wh/m at cruise (hover-weighted)
 GRAVITY = 9.81
 
 # ---------------------------------------------------------------------------
+# Threat gradient configuration
+# ---------------------------------------------------------------------------
+# The physics-based SAM detection probability (T1, T2, T3 in the perception
+# dataset) saturates at ~1.0 everywhere in the 33×55 km operating area because
+# the emitters have 100–150 km physical detection ranges.  To produce a useful
+# spatial gradient for the planner, we compute a *distance-decay threat
+# intensity* using shortened "effective ranges" that create genuine corridors
+# beyond emitter coverage.  This represents the scenario where each system has
+# been partially jammed / degraded, or where the eVTOL uses signature-reduction
+# maneuvers that reduce effective detection range.
+#
+# Emitter positions match the perception dataset (scripts/perception/dataset.py)
+SAM_EMITTERS_GRADIENT = [
+    {
+        "name":              "S-300V_site_A",
+        "lat":               28.60,
+        "lon":               77.10,
+        "effective_range_km": 30.0,   # shortened from physical 150 km
+    },
+    {
+        "name":              "SA-11_site_B",
+        "lat":               28.70,
+        "lon":               77.25,
+        "effective_range_km": 25.0,   # shortened from physical 100 km
+    },
+    {
+        "name":              "SA-22_site_C",
+        "lat":               28.75,
+        "lon":               77.35,
+        "effective_range_km": 20.0,   # shortened from physical 120 km
+    },
+]
+
+# ---------------------------------------------------------------------------
+# Threat gradient helper
+# ---------------------------------------------------------------------------
+def _compute_threat_gradient(
+    lats: np.ndarray,
+    lons: np.ndarray,
+) -> np.ndarray:
+    """
+    Compute a distance-decay threat intensity for each grid cell.
+
+    Uses shortened effective ranges (see SAM_EMITTERS_GRADIENT) so that grid
+    cells beyond an emitter's effective range have near-zero threat, creating
+    genuine low-threat corridors.
+
+    The probability of being detected by emitter i is modelled as:
+
+        P_i(r) = exp(-r / r_eff_i)
+
+    where r is the Haversine distance to emitter i and r_eff_i is its effective
+    range.  The combined probability (at-least-one detects) is then:
+
+        P_combined = 1 - prod_i (1 - P_i)
+
+    This results in values ranging from near 0 (far from all emitters) to near
+    1.0 (close to emitters), giving the planner a useful spatial gradient.
+    """
+    EARTH_R = 6_371_000.0
+    lats_rad = np.radians(lats)
+    lons_rad = np.radians(lons)
+
+    prob_none_detected = np.ones(len(lats), dtype=np.float64)
+
+    for emitter in SAM_EMITTERS_GRADIENT:
+        e_lat_r = math.radians(emitter["lat"])
+        e_lon_r = math.radians(emitter["lon"])
+        r_eff_m = emitter["effective_range_km"] * 1000.0
+
+        # Vectorised Haversine distance from emitter to every grid cell
+        dlat = lats_rad - e_lat_r
+        dlon = lons_rad - e_lon_r
+        a = (np.sin(dlat / 2.0) ** 2
+             + np.cos(lats_rad) * math.cos(e_lat_r) * np.sin(dlon / 2.0) ** 2)
+        dist_m = EARTH_R * 2.0 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
+
+        # Exponential decay probability for this emitter
+        p_i = np.exp(-dist_m / r_eff_m)
+        prob_none_detected *= (1.0 - p_i)
+
+    p_combined = 1.0 - prob_none_detected
+    return p_combined.astype(np.float64)
+
+
+# ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 @dataclass
@@ -112,6 +198,19 @@ class PercGrid:
         logger.info(f"Loading perception dataset from {csv_path} ...")
         df = pd.read_csv(csv_path, nrows=max_rows)
         logger.info(f"  Loaded {len(df):,} rows, columns: {list(df.columns)}")
+
+        # Compute distance-decay threat gradient to replace the saturated
+        # combined_threat_prob (which equals 1.0 everywhere).
+        threat_gradient = _compute_threat_gradient(
+            df["lat"].to_numpy(dtype=np.float64),
+            df["lon"].to_numpy(dtype=np.float64),
+        )
+        logger.info(
+            f"  Threat gradient: mean={threat_gradient.mean():.4f} "
+            f"std={threat_gradient.std():.4f} "
+            f"min={threat_gradient.min():.4f} max={threat_gradient.max():.4f}"
+        )
+
         return cls(
             lat=df["lat"].to_numpy(dtype=np.float32),
             lon=df["lon"].to_numpy(dtype=np.float32),
@@ -120,9 +219,11 @@ class PercGrid:
             terrain_cost=df["terrain_cost"].to_numpy(dtype=np.float32),
             wind_cost=df["wind_cost"].to_numpy(dtype=np.float32),
             obstacle_cost=df["obstacle_cost"].to_numpy(dtype=np.float32),
-            # Use max_threat_prob (individual peak) rather than combined_threat_prob
-            # (combined is nearly 1.0 everywhere due to overlapping threats).
-            threat_prob=df["max_threat_prob"].to_numpy(dtype=np.float32),
+            # Distance-decay threat gradient with genuine spatial variation.
+            # Replaces the physics-based combined_threat_prob (saturated at 1.0
+            # everywhere) with a signal that gives the planner useful gradients
+            # to differentiate trajectories on the threat objective.
+            threat_prob=threat_gradient.astype(np.float32),
             fused_cost=df["fused_cost"].to_numpy(dtype=np.float32),
             wind_speed=df["wind_speed_mps"].to_numpy(dtype=np.float32),
             # alt_m is already AGL (height above ground level).
@@ -536,7 +637,8 @@ def main() -> None:
     args = parse_args()
 
     # ---- Resolve paths relative to project root ----
-    project_root = Path(__file__).resolve().parent.parent
+    # scripts/planning/dataset.py → .parent = scripts/planning → .parent = scripts → .parent = project root
+    project_root = Path(__file__).resolve().parent.parent.parent
     perc_csv = args.perception_csv
     if not perc_csv.is_absolute():
         perc_csv = project_root / perc_csv
