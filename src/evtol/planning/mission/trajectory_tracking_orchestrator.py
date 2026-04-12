@@ -25,12 +25,12 @@ from enum import Enum
 import logging
 from typing import Callable
 
-from evtol.planning.mission.mission_loader import (
+from src.evtol.planning.mission.mission_loader import (
     MissionLoader,
     Waypoint,
     MissionConfig,
 )
-from evtol.control.guidance.trajectory_tracker import (
+from src.evtol.control.guidance.trajectory_tracker import (
     TrajectoryTracker,
     TrajectoryTrackerConfig,
     TrajectoryPoint,

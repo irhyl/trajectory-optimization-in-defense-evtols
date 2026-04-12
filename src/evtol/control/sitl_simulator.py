@@ -45,10 +45,6 @@ WINDOWS SETUP:
     1. Install ArduPilot: https://ardupilot.org/dev/docs/sitl-setup-windows.html
     2. Run: python "C:\ArduPilot\Tools\autotest\sim_vehicle.py" -v QuadPlane
     3. This module detects running SITL and connects automatically
-
-Author: Defense eVTOL Research Team
-Date: March 25, 2026
-Version: 2.0 (ArduPilot Tiltrotor Edition)
 """
 
 from dataclasses import dataclass, field

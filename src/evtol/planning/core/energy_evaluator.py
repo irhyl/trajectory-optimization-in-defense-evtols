@@ -46,7 +46,7 @@ from collections.abc import Callable
 from enum import Enum
 import logging
 
-from ..core.trajectory import Trajectory
+from .trajectory import Trajectory
 from ...vehicle.config import MassProperties, PropulsionConfig, FlightPhase
 from ...vehicle.energy.battery_model import BatteryPack, BatteryConfig
 

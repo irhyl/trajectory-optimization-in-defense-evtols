@@ -27,9 +27,9 @@ from pathlib import Path
 from typing import Any
 import logging
 
-from evtol.control.guidance.trajectory_tracker import TrajectoryPoint
-from evtol.planning.core.trajectory import TrajectorySegment, Trajectory
-from evtol.planning.core.state import State, Pose, Velocity, CoordinateFrame
+from src.evtol.control.guidance.trajectory_tracker import TrajectoryPoint
+from src.evtol.planning.core.trajectory import TrajectorySegment, Trajectory
+from src.evtol.planning.core.state import State, Pose, Velocity, CoordinateFrame
 
 logger = logging.getLogger(__name__)
 

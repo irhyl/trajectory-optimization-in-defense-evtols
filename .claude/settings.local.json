@@ -5,7 +5,9 @@
       "Bash(python -c ':*)",
       "Bash(python scripts/run_mission_stack.py)",
       "Bash(.venv/Scripts/python -c ':*)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(find /c/Users/ADITI/Desktop/rhyl-projects/trajectory-optimization-in-defense-evtols/src/evtol -type f -name \"*.py\" -exec ls -lh {} \\\\;)",
+      "Read(//c/Users/ADITI/Desktop/rhyl-projects/trajectory-optimization-in-defense-evtols/**)"
     ]
   }
 }
