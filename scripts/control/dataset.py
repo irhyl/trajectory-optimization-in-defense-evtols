@@ -101,8 +101,8 @@ KP_RT  = 120.0; KI_RT  = 4.0;   KD_RT  = 5.0
 KP_POS = 0.80;  KI_POS = 0.02;  KD_POS = 0.20
 
 # Saturation limits
-CR_MAX = 8.0               # m/s climb rate command max
-VEL_CMD_MAX = 25.0         # m/s velocity command max
+CR_MAX = 20.0              # m/s climb rate command max (must cover cruise_alt up to 1500 m)
+VEL_CMD_MAX = 120.0        # m/s velocity command max (must exceed max cruise speed ~96 m/s)
 ATT_MAX = np.deg2rad(30.0) # rad attitude command limit
 RATE_MAX = np.deg2rad(60.0)# rad/s rate command limit
 
@@ -126,7 +126,10 @@ PHASES = ["TAKEOFF", "HOVER", "TRANS1", "CRUISE", "TRANS2", "HOVER2", "LAND"]
 
 def build_phase_schedule(mission_time_s: float, hover_s: float, cruise_speed: float, cruise_alt: float):
     """Return list of (phase_name, duration_s, ref_speed, ref_alt)."""
-    t_takeoff  = min(15.0, mission_time_s * 0.05)
+    # Takeoff must be long enough for the vehicle to reach cruise_alt at CR_MAX climb rate.
+    # Allow ~70% of CR_MAX as effective average climb rate over the ramp.
+    t_takeoff  = max(15.0, cruise_alt / (CR_MAX * 0.70))
+    t_takeoff  = min(t_takeoff, mission_time_s * 0.40)   # cap at 40% of mission
     t_hover1   = max(5.0, hover_s * 0.3)
     t_trans1   = 12.0
     t_cruise   = max(10.0, mission_time_s - t_takeoff - t_hover1 - 2*t_trans1 - t_hover1 - 15.0)
