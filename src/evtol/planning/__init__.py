@@ -20,7 +20,7 @@ from .routing.graph_router import GraphRoutePlanner
 from .energy.optimizer import EnergyOptimizer as EnergyOptimizerImpl
 from .risk.assessment import RiskManager as RiskManagerImpl
 from .optimization.pareto import ParetoFrontier
-from .mission.planning import MissionPlanner as MissionPlannerImpl
+from .mission import MissionPlanner as MissionPlannerImpl
 
 __all__ = [
     # Core abstractions

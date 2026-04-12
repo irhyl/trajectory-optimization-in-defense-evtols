@@ -52,14 +52,14 @@ Example Usage:
 """
 
 # Core vehicle components
-from .dynamics.vehicle_model import VehicleModel
+from .dynamics import VehicleModel
 from .energy.battery_model import BatteryModel
 from .actuators.motor_model import MotorModel
 from .constraints.flight_envelope import FlightEnvelope
 from .faults.fault_injector import FaultInjector
 
 # Data structures
-from .dynamics.vehicle_model import VehicleState, ControlInputs
+from .dynamics import VehicleState, ControlInputs
 
 # Utilities
 from .utils.config import VehicleConfig
