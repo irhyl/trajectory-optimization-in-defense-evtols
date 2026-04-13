@@ -41,7 +41,17 @@ Since `t` accumulates from mission start, and TAKEOFF + HOVER phases take ~30–
 
 **Recommended fix (already noted in §10.2 of control_layer.md):** Reset the position reference at the start of each phase. The fix is a one-line change in `scripts/control/dataset.py`.
 
-**Status (2026-04-12): FIXED.** Per-phase position reference reset implemented in `scripts/control/dataset.py`. Variables `px_phase_start` and `px_phase_ref` are reset at every phase transition. Position error is now computed as `vx_ref * phase_time_elapsed - (px - px_phase_start)`, eliminating the cumulative artifact.
+**Status (2026-04-12): FIXED (v1).** Per-phase position reference reset implemented. Variables `px_phase_start` and `px_phase_ref` are reset at every phase transition.
+
+**Status (2026-04-13): FIXED (v2 — root cause resolved).** Two additional control bugs were identified that kept `pos_error_mean` at ~39–44 km despite the phase-reset fix:
+
+1. **Wrong pitch/roll sign** (`scripts/control/dataset.py` line 381): `pitch_ref = atan2(accel_x_cmd, G)` produced positive (nose-up) pitch in response to a forward acceleration demand, which generates a backward force in the NED model (`Fx = −sin(pitch) × Fz`). The vehicle could never reach cruise speed. Fixed to `pitch_ref = atan2(−accel_x_cmd, G)`. Roll sign corrected symmetrically.
+
+2. **VEL_CMD_MAX too low**: `VEL_CMD_MAX = 25 m/s` clipped all velocity commands below cruise speeds (53–96 m/s). Fixed to `VEL_CMD_MAX = 120 m/s`.
+
+3. **CR_MAX too low for high altitudes**: `CR_MAX = 8 m/s` could not climb to `cruise_altitude_m` (up to 1500 m) within the 15 s takeoff window. Fixed to `CR_MAX = 20 m/s` with altitude-dependent takeoff duration.
+
+After all fixes: `pos_error_mean = 12.3 m` (was 43,647 m), `alt_error_mean = 22.3 m` (was 248 m), `vel_settling_mean = 2.7 s` (was 16.4 s).
 
 ---
 
@@ -128,14 +138,14 @@ The NeurIPS D&B track expects:
 
 ### 3.2 Current Status
 
-*Last updated: 2026-04-12*
+*Last updated: 2026-04-13*
 
 | Requirement | Status | Notes |
 |-------------|--------|-------|
 | Novel dataset | ✅ Strong | First open defense eVTOL dataset with real geospatial + multi-signature |
 | Scale | ⚠️ Partial | 1M perception rows is good; 2K planning/vehicle/control rows is small |
 | ML tasks defined | ✅ Done | 6 tasks defined in introduction.md |
-| Baseline results | ✅ Done | LR, GBM, MLP on T1 (risk classification) and T2 (energy regression); results in outputs/ml/baseline_results.csv |
+| Baseline results | ✅ Done | LR, GBM, MLP on T1 (AUC 0.9996) and T2 (R² 0.9994) on corrected dataset; results in outputs/ml/baseline_results.csv |
 | Train/test splits | ✅ Done | 80/10/10 stratified splits in outputs/splits/ (seed=42) |
 | Comparison to existing | ⚠️ Partial | Qualitative comparison only |
 | Ethical discussion | ✅ Done | In introduction.md and doc/research_limitations.md §5 |
@@ -143,18 +153,18 @@ The NeurIPS D&B track expects:
 | Datasheet | ✅ Done | Gebru et al. 2021 format in doc/datasheet.md |
 | Tutorial notebook | ✅ Done | notebooks/tutorial.ipynb |
 | Threat gradient fix | ✅ Done | Distance-decay model in scripts/planning/dataset.py |
-| Position error fix | ✅ Done | Per-phase reset in scripts/control/dataset.py |
+| Position error fix | ✅ Done | Per-phase reset + pitch/roll sign + VEL_CMD_MAX + CR_MAX fixes in scripts/control/dataset.py |
 | Settling time fix | ✅ Done | Separate alt/vel metrics in scripts/control/dataset.py |
 
 ### 3.3 Priority Actions for Submission Readiness
 
-**Must do (blockers) — all completed as of 2026-04-12:**
+**Must do (blockers) — all completed as of 2026-04-13:**
 
-1. ✅ **Baseline ML experiments** — LR, GBM, MLP on T1 (risk classification, AUC up to 0.9998) and T2 (energy regression, R² up to 0.9997). Results in `outputs/ml/baseline_results.csv`. Script: `scripts/ml/baseline_experiments.py`.
+1. ✅ **Baseline ML experiments** — LR, GBM, MLP on T1 (risk classification, AUC 0.9996) and T2 (energy regression, R² 0.9994). Results in `outputs/ml/baseline_results.csv`. Script: `scripts/ml/baseline_experiments.py`.
 
 2. ✅ **Train/val/test split files** — Stratified 80/10/10 by `risk_label`, seed=42. Saved in `outputs/splits/` as numpy index arrays.
 
-3. ✅ **Fix the position error reference signal** — Per-phase reset implemented in `scripts/control/dataset.py`. Position error now measures actual tracking quality within each phase.
+3. ✅ **Fix the position error reference signal** — Phase-reset, pitch/roll sign correction, VEL_CMD_MAX (25→120 m/s), CR_MAX (8→20 m/s), and altitude-dependent takeoff time all fixed in `scripts/control/dataset.py`. `pos_error_mean` reduced from 43,647 m to 12.3 m.
 
 4. ✅ **Fix the threat scenario** — Distance-decay gradient (effective ranges 20–30 km) added in `scripts/planning/dataset.py::_compute_threat_gradient()`. Produces std=0.12 across the operating area.
 
