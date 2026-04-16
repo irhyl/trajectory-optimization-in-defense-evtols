@@ -1,0 +1,7 @@
+region,task,model,type,metric1,value1,metric2,value2,metric3,value3,n_samples,n_features,cv_folds,runtime_s
+odisha,T1:RiskClassification,LogisticRegression,classification,AUC-ROC,0.9998,F1,0.9982,Accuracy,0.9965,2000,8,5,0.07
+odisha,T1:RiskClassification,GradientBoosting,classification,AUC-ROC,0.995,F1,0.9974,Accuracy,0.995,2000,8,5,3.39
+odisha,T1:RiskClassification,MLP,classification,AUC-ROC,0.9998,F1,0.9984,Accuracy,0.997,2000,8,5,4.64
+odisha,T2:EnergyRegression,Ridge,regression,R²,0.9908,MAE,64.541,—,,2000,8,5,0.01
+odisha,T2:EnergyRegression,GradientBoosting,regression,R²,0.9986,MAE,25.7211,—,,2000,8,5,4.47
+odisha,T2:EnergyRegression,MLP,regression,R²,0.99,MAE,71.2362,—,,2000,8,5,12.36
