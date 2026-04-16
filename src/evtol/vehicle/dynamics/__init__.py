@@ -6,9 +6,11 @@ including translational and rotational motion, force and moment calculations,
 and kinematic transformations.
 """
 
-from .vehicle_model import VehicleModel
+from .state import VehicleState
+from .rigid_body import RigidBodyDynamics
 
 __all__ = [
-    "VehicleModel",
+    "VehicleState",
+    "RigidBodyDynamics",
 ]
 

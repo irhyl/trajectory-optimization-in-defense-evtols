@@ -51,58 +51,48 @@ Example Usage:
     trajectory = vehicle.simulate(initial_state, controls, 0.01, 60.0)
 """
 
-# Core vehicle components
-from .dynamics import VehicleModel
-from .energy.battery_model import BatteryModel
-from .actuators.motor_model import MotorModel
-from .constraints.flight_envelope import FlightEnvelope
-from .faults.fault_injector import FaultInjector
+# Core vehicle components — only import from modules that actually exist
+from .vehicle_model import TiltrotorVehicle, TiltrotorVehicle as VehicleModel
+from .vehicle_model import ControlInputs, VehicleOutput, TiltrotorConfig
+try:
+    from .energy.battery_model import BatteryModel
+except ImportError:
+    BatteryModel = None
+
+try:
+    from .propulsion.motor_model import MotorModel
+except ImportError:
+    MotorModel = None
 
 # Data structures
-from .dynamics import VehicleState, ControlInputs
+from .dynamics import VehicleState
 
-# Utilities
-from .utils.config import VehicleConfig
-from .utils.data_loader import DataLoader
-
-# Integration
-from .integration.rk4_integrator import RK4Integrator
-
-# Serving
+# Optional modules (may not exist in all deployment configurations)
 try:
-    from .serving.api import VehicleAPI
+    from .config import VehicleConfig
 except ImportError:
-    # uvicorn not available, API not loaded
-    VehicleAPI = None
+    VehicleConfig = None
 
 # Version information
 __version__ = "1.0.0"
 __author__ = "eVTOL Defense System Team"
 __email__ = "team@evtol-defense.com"
 
-# Package metadata
 __all__ = [
-    # Core components
-    "VehicleModel",
-    "BatteryModel", 
-    "MotorModel",
-    "FlightEnvelope",
-    "FaultInjector",
-    
-    # Data structures
-    "VehicleState",
+    # Core vehicle
+    "TiltrotorVehicle",
+    "VehicleModel",          # alias for TiltrotorVehicle
+    "TiltrotorConfig",
     "ControlInputs",
-    
-    # Utilities
+    "VehicleOutput",
+    # Energy
+    "BatteryModel",
+    # Propulsion
+    "MotorModel",
+    # Dynamics state
+    "VehicleState",
+    # Config
     "VehicleConfig",
-    "DataLoader",
-    
-    # Integration
-    "RK4Integrator",
-    
-    # Serving
-    "VehicleAPI",
-    
     # Metadata
     "__version__",
     "__author__",
