@@ -646,8 +646,12 @@ wind_ned = interpolate_from_dataset(lat, lon, alt,
 src/evtol/perception/
 ├── __init__.py                    # Public API, all exports
 ├── perception_api.py              # UnifiedPerceptionAPI — single query interface
-├── sensor_fusion.py               # SensorFuser, PathThreatAnalyzer
+├── sensor_fusion.py               # SensorFuser (6-state Kalman), PathThreatAnalyzer
+│                                  #   TrackedThreat: state=[px,py,pz,vx,vy,vz],
+│                                  #   P covariance 6×6, piecewise-white acceleration Q
 ├── fusion_orchestrator.py         # SensorFusionOrchestrator, ThreatMap
+│                                  #   ThreatMap threat_level computed pre-construction
+│                                  #   (was post-mutation bug — fixed 2026-04-15)
 ├── terrain/
 │   ├── data_provider.py           # TerrainDataProvider (Open-Meteo SRTM)
 │   ├── field_model.py             # TerrainFieldModel (interpolated grid)
