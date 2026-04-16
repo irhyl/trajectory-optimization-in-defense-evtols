@@ -1,7 +1,7 @@
 """
-Sampling-Based Path Planners
+Sampling-Based Path Planners (generic framework)
 
-This module implements sampling-based path planning algorithms:
+This module implements generic sampling-based path planning algorithms:
 
 - **RRT**: Rapidly-exploring Random Tree (fast, probabilistically complete)
 - **RRT***: Asymptotically optimal RRT (converges to optimal as samples → ∞)
@@ -18,6 +18,19 @@ Trade-offs vs Graph-Based:
 - (+) Scale better to high dimensions
 - (-) Solutions are suboptimal initially
 - (-) Require post-processing for smoothness
+
+**Canonical threat-aware implementation**
+-----------------------------------------
+For defense eVTOL missions the canonical RRT* implementation is
+``evtol.planning.rrt_star`` (``src/evtol/planning/rrt_star.py``).
+That module extends the generic RRT* here with:
+  - Threat-zone cost weighting (SAM radar range equation)
+  - NED ↔ lat/lon coordinate bridging
+  - Rewiring radius γ = (2(1+1/d) · vol(free)/vol(unit_ball))^(1/d)
+    (Karaman & Frazzoli 2011, Theorem 38)
+
+Use this module for general-purpose 3-D trajectory planning without
+threat modelling; use ``rrt_star.py`` for mission-grade planning.
 
 Author: Defense eVTOL Research Team
 """
