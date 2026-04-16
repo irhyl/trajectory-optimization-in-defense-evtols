@@ -62,7 +62,7 @@ from scipy.spatial import cKDTree
 # Bootstrap: add src/ to sys.path so perception sub-packages are importable
 # without going through evtol.perception.__init__ (which has extra deps).
 # ---------------------------------------------------------------------------
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # Use UTF-8 for Windows console
