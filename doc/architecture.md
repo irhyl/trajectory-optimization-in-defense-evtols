@@ -93,22 +93,32 @@ The control simulation then closes the loop with a simplified 6-DoF plant, recor
 
 ```
 src/evtol/
+├── core/                # Canonical cross-layer types (single source of truth)
+│   ├── state.py         # VehicleState (re-export), FlightPhase enum
+│   └── environment.py   # WindField, ThreatField abstract interfaces
+│
 ├── perception/          # Real-data perception and cost field
 │   ├── terrain/         # SRTM elevation, slope, roughness
 │   ├── wind/            # GFS wind forecast, turbulence
 │   ├── obstacle/        # OSM geometry, conflict detection
 │   ├── threat/          # SAM detection probability, engagement model
-│   └── fusion/          # Weighted cost aggregation
+│   ├── sensor_fusion.py # 6-state Kalman tracker (TrackedThreat)
+│   └── fusion_orchestrator.py  # 20 Hz threat-map fusion cycle
 │
 ├── planning/            # Multi-objective trajectory planning
-│   ├── algorithms/      # RRT* (sampling.py), graph search (graph.py)
-│   ├── optimization/    # NSGA-III (nsga3.py), Pareto (pareto.py)
+│   ├── algorithms/      # Generic RRT* (sampling.py), graph search (graph.py)
+│   ├── rrt_star.py      # CANONICAL threat-aware RRT* for defense missions
+│   ├── optimization/    # CANONICAL NSGA-III (nsga3.py), Pareto (pareto.py)
+│   ├── nsga3_optimizer.py  # Thin re-export of optimization/nsga3.py
 │   ├── core/            # Trajectory, cost, constraints, energy evaluator
 │   ├── trajectory/      # Smooth trajectory generation, replanning
 │   ├── mission/         # Mission planner, contingency
 │   └── robust/          # Chance constraints, uncertainty propagation
 │
 ├── control/             # Cascaded PID autopilot
+│   ├── cascaded_control.py     # Main cascaded PD controller
+│   ├── sitl_simulator.py       # SITL bridge (SITLState telemetry struct)
+│   ├── advanced_modes/         # ModeInputState, flight-mode selector
 │   ├── outer_loop/      # Position, velocity, altitude, heading
 │   ├── inner_loop/      # Attitude, rate
 │   ├── modes/           # Hover, cruise, transition, mode manager
@@ -116,12 +126,21 @@ src/evtol/
 │   └── guidance/        # Mission manager, path follower, tracker
 │
 └── vehicle/             # Vehicle physics models
-    ├── dynamics/        # Newton-Euler 6-DoF, state vector, integrator
+    ├── vehicle_model.py # TiltrotorVehicle — canonical 6-DoF simulation class
+    ├── dynamics/        # Newton-Euler 6-DoF state vector + integrator
+    │   └── state.py     # VehicleState definition (Hamilton [w,x,y,z])
     ├── propulsion/      # BEMT rotor, motor, nacelle, power system
     ├── aerodynamics/    # Wing, fuselage, transition aerodynamics
     ├── energy/          # Battery model, thermal, power management
     └── signatures/      # Acoustic, infrared, RCS models
 ```
+
+**Key type-ownership rules:**
+- `VehicleState` lives in `vehicle/dynamics/state.py`; import via `evtol.core.state` from all other layers.
+- `FlightPhase` enum lives in `evtol.core.state` and is used by vehicle, control, and config layers.
+- `SITLState` (hardware telemetry, ENU/Euler) lives in `control/sitl_simulator.py` — not to be confused with `VehicleState`.
+- `ModeInputState` (minimal mode-selector inputs) lives in `control/advanced_modes/advanced_modes.py`.
+- Canonical threat-aware RRT*: `planning/rrt_star.py`. Generic framework: `planning/algorithms/sampling.py`.
 
 ### 3.2 scripts/ — Dataset Pipeline
 
