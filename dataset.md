@@ -1,24 +1,3 @@
----
-license: cc-by-4.0
-task_categories:
-  - tabular-classification
-  - tabular-regression
-language:
-  - en
-tags:
-  - evtol
-  - uav
-  - trajectory-optimization
-  - defense
-  - geospatial
-  - multi-objective
-  - pid-control
-  - sam-threat
-pretty_name: Trajectory Optimization in Defense eVTOLs
-size_categories:
-  - 10M<n<100M
----
-
 # Trajectory Optimization in Defense eVTOLs
 
 **First open multi-objective dataset for defense eVTOL trajectory planning in contested airspace.**
@@ -191,18 +170,6 @@ See `doc/research_limitations.md` for full technical assessment.
 | T2: Energy Regression | MLP | R² | 0.9900 |
 
 Full results in `outputs/ml/baseline_results.csv`.
-
-## Citation
-
-```bibtex
-@misc{ramakrishnan2026evtol,
-  author = {Ramakrishnan, Aditi},
-  title  = {Trajectory Optimization in Defense eVTOLs:
-             An Open Multi-Objective Dataset and Benchmark},
-  year   = {2026},
-  note   = {NeurIPS Datasets and Benchmarks submission}
-}
-```
 
 ## License
 
