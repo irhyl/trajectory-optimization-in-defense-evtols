@@ -1,0 +1,7 @@
+region,task,model,type,metric1,value1,metric2,value2,metric3,value3,n_samples,n_features,cv_folds,runtime_s
+arunachal,T1:RiskClassification,LogisticRegression,classification,AUC-ROC,0.7925,F1,0.0,Accuracy,0.999,2000,8,5,0.07
+arunachal,T1:RiskClassification,GradientBoosting,classification,AUC-ROC,0.1997,F1,0.0,Accuracy,0.999,2000,8,5,2.0
+arunachal,T1:RiskClassification,MLP,classification,AUC-ROC,0.049,F1,0.0,Accuracy,0.999,2000,8,5,1.72
+arunachal,T2:EnergyRegression,Ridge,regression,R²,0.9916,MAE,71.4429,—,,2000,8,5,0.01
+arunachal,T2:EnergyRegression,GradientBoosting,regression,R²,0.9986,MAE,28.9161,—,,2000,8,5,4.13
+arunachal,T2:EnergyRegression,MLP,regression,R²,0.9921,MAE,74.0954,—,,2000,8,5,11.37
