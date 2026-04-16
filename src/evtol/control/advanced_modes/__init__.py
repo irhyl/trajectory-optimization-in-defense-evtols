@@ -15,7 +15,7 @@ from .advanced_modes import (
     BlendingCurve,
     MotorCommand,
     ThreatMap,
-    VehicleState,
+    ModeInputState,
     MissionContext,
 )
 
@@ -44,7 +44,7 @@ __all__ = [
     'BlendingCurve',
     'MotorCommand',
     'ThreatMap',
-    'VehicleState',
+    'ModeInputState',
     'MissionContext',
     
     # Energy optimization

@@ -80,7 +80,7 @@ class MissionContext:
     
 
 @dataclass
-class VehicleState:
+class ModeInputState:
     """Current vehicle state."""
     airspeed_ms: float = 0.0
     altitude_m: float = 100.0
@@ -206,7 +206,7 @@ class AdvancedFlightModeManager:
     def update(
         self,
         t: float,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         mission_context: MissionContext,
         threat_map: Optional[ThreatMap] = None,
         dt: float = 0.01
@@ -263,7 +263,7 @@ class AdvancedFlightModeManager:
     
     def _select_target_mode(
         self,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         mission_context: MissionContext,
         threat_map: ThreatMap
     ) -> FlightModeState:
@@ -314,7 +314,7 @@ class AdvancedFlightModeManager:
     def _initiate_mode_transition(
         self,
         t: float,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         target_mode: FlightModeState
     ) -> None:
         """Initiate transition to target mode."""
@@ -335,7 +335,7 @@ class AdvancedFlightModeManager:
     def _update_transition_blend(
         self,
         t: float,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         dt: float
     ) -> None:
         """Update smooth transition blending."""
@@ -353,7 +353,7 @@ class AdvancedFlightModeManager:
     
     def _check_stall_envelope(
         self,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         mission_context: MissionContext
     ) -> None:
         """Monitor airspeed against stall envelope."""
@@ -388,7 +388,7 @@ class AdvancedFlightModeManager:
     def _update_stall_recovery(
         self,
         t: float,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         dt: float
     ) -> None:
         """Handle stall recovery maneuver."""
@@ -408,7 +408,7 @@ class AdvancedFlightModeManager:
     
     def _analyze_energy_efficiency(
         self,
-        vehicle_state: VehicleState,
+        vehicle_state: ModeInputState,
         mission_context: MissionContext
     ) -> None:
         """Analyze and score energy efficiency for each mode."""
@@ -485,7 +485,7 @@ __all__ = [
     'BlendingCurve',
     'MotorCommand',
     'ThreatMap',
-    'VehicleState',
+    'ModeInputState',
     'MissionContext',
     'AirspeedEnvelope',
     'FlightModeTransitionConfig',
