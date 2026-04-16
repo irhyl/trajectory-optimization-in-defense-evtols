@@ -129,17 +129,33 @@ class RFMeasurement:
 
 @dataclass
 class TrackedThreat:
-    """Kalman-filtered threat track."""
+    """Kalman-filtered threat track.
+
+    State vector: x = [px, py, pz, vx, vy, vz]  (6-element)
+    Covariance:   P  (6×6 matrix)
+
+    The public ``position_error`` / ``velocity_error`` fields are the square-root
+    of the diagonal of P and are kept in sync after every filter step so that
+    callers that don't know about P still get meaningful uncertainty estimates.
+    """
     threat_id: str                 # Unique identifier
     threat_type: ThreatType
-    
+
     # Position (earth frame)
     position: np.ndarray           # [x, y, z] (m)
     velocity: np.ndarray           # [vx, vy, vz] (m/s)
-    
-    # Uncertainty
+
+    # Uncertainty (√diag of covariance — kept in sync with P)
     position_error: np.ndarray     # [σx, σy, σz] (m)
     velocity_error: np.ndarray     # [σvx, σvy, σvz] (m/s)
+
+    # Full 6×6 state covariance  P = [[Ppp, Ppv], [Pvp, Pvv]]
+    covariance: np.ndarray = field(
+        default_factory=lambda: np.diag([
+            100.0**2, 100.0**2, 100.0**2,   # position variance (m²)
+            10.0**2,  10.0**2,  10.0**2,    # velocity variance (m²/s²)
+        ])
+    )
     
     # Confidence
     detection_count: int = 1       # Number of detections
@@ -273,54 +289,107 @@ class SensorFuser:
     
     def _update_track_kalman(self, track: TrackedThreat, measurement: np.ndarray, signal_strength: float):
         """
-        Simple Kalman update (predictor-corrector).
-        
-        **Simplified Kalman Filter**:
-        - Predict: x̂_pred = F·x̂_prev
-        - Correct: x̂ = x̂_pred + K·(z - H·x̂_pred)
-        
-        where K is Kalman gain (simplified)
+        6-state constant-velocity Kalman measurement update.
+
+        State:        x = [px, py, pz, vx, vy, vz]
+        Measurement:  z = [px, py, pz]  (position only)
+
+        Equations (standard linear Kalman corrector step):
+            H       = [I₃ | 0₃]                  (3×6 observation matrix)
+            S       = H P Hᵀ + R                  (3×3 innovation covariance)
+            K       = P Hᵀ S⁻¹                    (6×3 Kalman gain)
+            x̂       = x̂⁻ + K (z − H x̂⁻)          (updated state)
+            P       = (I₆ − K H) P                 (updated covariance)
+
+        Measurement noise R is derived from signal strength:
+            σ_meas = 50 / (1 + 0.1·|dBm|) metres  (better signal → lower noise)
+
+        Reference: Maybeck, P.S. (1979). Stochastic Models, Estimation and
+        Control, Vol. 1. Academic Press.
         """
-        # Process noise (velocity change)
-        process_noise = 0.5  # m/s² std
-        
-        # Measurement noise (based on signal strength)
-        meas_noise = 50.0 / (1.0 + 0.1 * np.clip(signal_strength, -100, 0))  # Better signal → lower noise
-        
-        # Simple gain (in practice use full covariance update)
-        K = track.position_error[0] / (track.position_error[0] + meas_noise)
-        
-        # Update position
-        residual = measurement - track.position
-        track.position = track.position + K * residual
-        
-        # Update uncertainty (reduced by measurement)
-        track.position_error = track.position_error * (1.0 - K)
-        
-        # Estimate velocity from successive measurements
-        time_delta = (datetime.now() - track.timestamp_updated).total_seconds()
-        if time_delta > 0.1:  # Only update if time has advanced
-            velocity_meas = residual / max(time_delta, 0.01)
-            # Low-pass filter velocity estimate
-            alpha = 0.3
-            track.velocity = (1.0 - alpha) * track.velocity + alpha * velocity_meas
+        # --- Measurement noise covariance (isotropic) ---
+        sigma_meas = 50.0 / (1.0 + 0.1 * np.abs(np.clip(signal_strength, -100.0, 0.0)))
+        R = np.eye(3) * sigma_meas**2
+
+        # --- Observation model H = [I₃ | 0₃]  (3×6) ---
+        H = np.zeros((3, 6))
+        H[:3, :3] = np.eye(3)
+
+        P = track.covariance                         # 6×6
+
+        # --- Innovation covariance S = H P Hᵀ + R ---
+        S = H @ P @ H.T + R                          # 3×3
+
+        # --- Kalman gain K = P Hᵀ S⁻¹  (6×3) ---
+        K = P @ H.T @ np.linalg.inv(S)
+
+        # --- State correction ---
+        x = np.concatenate([track.position, track.velocity])   # 6-vector
+        innovation = measurement - H @ x                        # 3-vector
+        x_upd = x + K @ innovation
+
+        # --- Covariance correction  P = (I − KH) P ---
+        I6 = np.eye(6)
+        P_upd = (I6 - K @ H) @ P
+
+        # --- Write back ---
+        track.position = x_upd[:3]
+        track.velocity = x_upd[3:]
+        track.covariance = P_upd
+
+        # Keep legacy σ fields in sync with √diag(P)
+        diag = np.maximum(np.diag(P_upd), 0.0)
+        track.position_error = np.sqrt(diag[:3])
+        track.velocity_error = np.sqrt(diag[3:])
     
     def predict_all_tracks(self, time_step_s: float = 0.02):
-        """Predict all tracks forward in time."""
+        """
+        Constant-velocity Kalman prediction step for all tracks.
+
+        State-transition model (discrete-time, constant velocity):
+            F = [[I₃,  dt·I₃],
+                 [0₃,     I₃]]
+
+        Process noise (piecewise-white acceleration model):
+            Q = σ_a² · [[dt⁴/4·I₃,  dt³/2·I₃],
+                         [dt³/2·I₃,    dt²·I₃]]
+        where σ_a = 1.0 m/s² (assumed manoeuvre acceleration std).
+
+        Reference: Bar-Shalom, Y. et al. (2001). Estimation with Applications
+        to Tracking and Navigation. Wiley.
+        """
+        dt = time_step_s
+        sigma_a = 1.0  # m/s²  manoeuvre acceleration standard deviation
+
+        # Constant-velocity state-transition  F  (6×6)
+        F = np.eye(6)
+        F[:3, 3:] = np.eye(3) * dt
+
+        # Discrete process-noise covariance  Q  (6×6, piecewise-white acceleration)
+        q = sigma_a**2
+        Q = q * np.block([
+            [dt**4 / 4.0 * np.eye(3), dt**3 / 2.0 * np.eye(3)],
+            [dt**3 / 2.0 * np.eye(3), dt**2        * np.eye(3)],
+        ])
+
         now = datetime.now()
-        
         for track in self.tracks.values():
-            # Age the track
             track.time_since_update = (now - track.timestamp_updated).total_seconds()
-            
-            # Predict position
-            track.position = track.position + track.velocity * time_step_s
-            
-            # Increase uncertainty with time (process noise)
-            process_noise_growth = 0.1  # m/cycle
-            track.position_error = np.sqrt(
-                track.position_error**2 + process_noise_growth**2
-            )
+
+            # Predict state  x̂⁻ = F x̂
+            x = np.concatenate([track.position, track.velocity])
+            x_pred = F @ x
+            track.position = x_pred[:3]
+            track.velocity = x_pred[3:]
+
+            # Predict covariance  P⁻ = F P Fᵀ + Q
+            P_pred = F @ track.covariance @ F.T + Q
+            track.covariance = P_pred
+
+            # Keep legacy σ fields in sync
+            diag = np.maximum(np.diag(P_pred), 0.0)
+            track.position_error = np.sqrt(diag[:3])
+            track.velocity_error = np.sqrt(diag[3:])
     
     def get_active_tracks(self) -> List[TrackedThreat]:
         """Return all tracks that are not stale."""
