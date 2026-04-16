@@ -1,0 +1,7 @@
+region,task,model,type,metric1,value1,metric2,value2,metric3,value3,n_samples,n_features,cv_folds,runtime_s
+ladakh,T1:RiskClassification,LogisticRegression,classification,AUC-ROC,0.9949,F1,0.7,Accuracy,0.997,2000,8,5,0.06
+ladakh,T1:RiskClassification,GradientBoosting,classification,AUC-ROC,0.8064,F1,0.5556,Accuracy,0.996,2000,8,5,3.59
+ladakh,T1:RiskClassification,MLP,classification,AUC-ROC,0.9353,F1,0.6957,Accuracy,0.9965,2000,8,5,2.96
+ladakh,T2:EnergyRegression,Ridge,regression,R²,0.9908,MAE,74.2223,—,,2000,8,5,0.01
+ladakh,T2:EnergyRegression,GradientBoosting,regression,R²,0.9959,MAE,30.5265,—,,2000,8,5,4.27
+ladakh,T2:EnergyRegression,MLP,regression,R²,0.9901,MAE,87.223,—,,2000,8,5,12.13
