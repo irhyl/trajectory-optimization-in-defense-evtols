@@ -289,7 +289,17 @@ class SensorFusionOrchestrator:
             if highest_risk_idx >= 0 else None
         )
         
-        # Build threat map
+        # Compute threat level before construction (based solely on highest_risk).
+        if highest_risk < 0.3:
+            threat_level_value = ThreatLevel.GREEN.value
+        elif highest_risk < 0.6:
+            threat_level_value = ThreatLevel.YELLOW.value
+        elif highest_risk < 0.8:
+            threat_level_value = ThreatLevel.RED.value
+        else:
+            threat_level_value = ThreatLevel.BLACK.value
+
+        # Build threat map — all fields fully resolved at construction time.
         threat_map = ThreatMap(
             timestamp=cycle_start,
             active_threats=active_threats,
@@ -304,11 +314,9 @@ class SensorFusionOrchestrator:
                 'rf_measurements_processed': len(rf_batch),
                 'active_tracks': len(active_threats),
                 'total_tracks': len(self.sensor_fuser.tracks),
-                'new_threat_level': 'pending',  # Filled in below after construction
+                'new_threat_level': threat_level_value,
             },
         )
-        
-        threat_map.fusion_metrics['new_threat_level'] = threat_map.get_threat_level().value
         
         # Store in history for analysis
         self.threat_map_history.append(threat_map)
