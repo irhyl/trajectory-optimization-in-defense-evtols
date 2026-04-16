@@ -22,30 +22,8 @@ Author: eVTOL Trajectory Optimization Research Team
 Version: 2.0.0 (Real Data Integration)
 """
 
-from .data_provider import (
-    WindDataProvider,
-    WindDataSource,
-    WindObservation,
-    WindForecast,
-)
-from .field_model import (
-    WindFieldModel,
-    WindMetadata,
-    WindComponents,
-    BoundaryLayerProfile,
-)
-from .interpolator import (
-    WindInterpolator,
-    InterpolationMethod,
-    TemporalInterpolator,
-)
-from .output_manager import (
-    WindOutputManager,
-    WindExportFormat,
-    ExportConfig,
-    ExportResult,
-    WindProvenance,
-)
+# Lazy sub-module imports: import sub-modules directly (e.g. wind.data_provider)
+# rather than relying on this __init__ to re-export everything.
 try:
     from .visualization import (
         WindField2DPlotter,
