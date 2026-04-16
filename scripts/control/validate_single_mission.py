@@ -238,7 +238,7 @@ if cruise_mask.any():
 # 4. Attitude (pitch)
 ax4 = fig.add_subplot(gs[1, 1])
 ax4.plot(ts, np.degrees(pitchs), color="#8e44ad", lw=1.2, label="pitch")
-ax4.plot(ts, np.degrees(rolls),  color="#e67e22", lw=1.0, label="roll", alpha=0.7)
+ax4.plot(ts, np.degrees(rolls),  color="#ae6525", lw=1.0, label="roll", alpha=0.7)
 shade_phases(ax4)
 ax4.axhline(0, color="k", lw=0.5, ls="--")
 ax4.set_xlabel("Time (s)"); ax4.set_ylabel("Angle (deg)")
