@@ -22,41 +22,48 @@ The dataset is fully reproducible from the provided pipeline scripts, which acce
 
 **2.1 What do the instances represent?**
 
-Four linked layers:
-- **Perception** (1,057,714 rows): Grid cells in a 33 x 55 km operating area at 14 altitude bands, each with terrain, wind, obstacle, and SAM threat features.
-- **Planning** (2,000 rows): Mission trajectories with RRT*-planned waypoints from random starts to random goals.
-- **Vehicle** (2,000 rows): Per-mission 6-DoF physics simulation records (BEMT rotor, aerodynamics, battery).
-- **Control** (2,000 rows): Per-mission closed-loop PID simulation records at 50 Hz.
+Four linked layers, collected across six Indian geographic regions:
+
+- **Perception**: Grid cells at terrain-resolved altitude bands, each with terrain, wind, obstacle, and SAM threat features derived from real APIs.
+- **Planning**: Mission trajectories with RRT*-planned waypoints optimized via NSGA-III across energy/time/threat objectives.
+- **Vehicle**: Per-mission 6-DoF physics simulation records (BEMT rotor, aerodynamics, battery).
+- **Control**: Per-mission closed-loop PID simulation records at 50 Hz.
 
 **2.2 How many instances?**
 
-| Layer | Rows | Features |
-|-------|------|----------|
-| Perception | 1,057,714 | 28 |
-| Planning | 2,000 | 25 |
-| Vehicle | 2,000 | 95 |
-| Control | 2,000 | 76 |
+| Region | Planning rows | Vehicle rows | Control rows | Notes |
+|--------|--------------|-------------|-------------|-------|
+| Delhi (NCR) | 10,000 | 10,000 | 10,000 | Primary benchmark region |
+| Mumbai | 2,000 | 2,000 | 2,000 | Coastal urban |
+| Bangalore | 2,000 | 2,000 | 2,000 | Elevated plateau |
+| Arunachal Pradesh | 2,000 | 2,000 | 2,000 | High-altitude mountainous |
+| Odisha | 2,000 | 2,000 | 2,000 | Coastal flat |
+| Ladakh | 2,000 | 2,000 | 2,000 | High-altitude arid |
+| **Total** | **22,000** | **22,000** | **22,000** | |
+
+Each region has per-region perception data (terrain/wind/obstacles from real APIs).
+Delhi planning dataset: 25 features. Vehicle: 95 features. Control: 76 features.
 
 **2.3 Complete coverage or sample?**
-Perception layer is complete coverage at the defined grid resolution (0.002 deg, 14 altitude bands). Planning/vehicle/control are a 2,000-mission sample from the space of all possible start/goal pairs.
+Perception layer is complete coverage at the defined grid resolution (0.002 deg resolution per region). Planning/vehicle/control are a sampled set of missions from the space of all possible start/goal pairs within each region's bounding box.
 
 **2.4 What data does each instance consist of?**
-Rows in Parquet or CSV files. Full schema documentation in `doc/data_guide.md`.
+Rows in Parquet files, organized under `outputs/<region>/`. Full schema documentation in `doc/data_guide.md`.
 
 **2.5 Labels and targets?**
 Six ML tasks defined (see `doc/introduction.md`):
-- T1: `risk_label` -- binary classification (0=low-risk, 1=high-risk)
-- T2: `energy_consumed_wh` -- regression (closed-loop energy in Wh)
-- T3: `mission_abort` -- binary classification (trivial: all 0 in current data)
-- T4: `alt_error_mean_m` -- regression (altitude tracking error in m)
-- T5: `threat_cost` -- regression (trajectory threat exposure probability)
-- T6: `soc_final` -- regression (final battery state of charge)
+- T1: `risk_label` — binary classification (0=low-risk, 1=high-risk)
+- T2: `energy_consumed_wh` — regression (closed-loop energy in Wh)
+- T3: `mission_abort` — binary classification (trivial: all 0 in current data)
+- T4: `alt_error_mean_m` — regression (altitude tracking error in m)
+- T5: `threat_cost` — regression (trajectory threat exposure probability)
+- T6: `soc_final` — regression (final battery state of charge)
 
 **2.6 Missing data?**
-None. Inapplicable phase features are set to 0.0, documented in `doc/data_guide.md`.
+Odisha region: `obstacle_cost` column is all-maximum (1.0) due to Overpass API gateway timeouts during data collection. All other fields are present. This is documented in `outputs/odisha/` metadata.
 
 **2.7 Relationships between instances?**
-The four layers align by row index (row i corresponds to the same mission across all layers). Shared columns (`start_lat/lon`, `goal_lat/lon`, `path_length_m`) serve as join keys.
+Within each region, the four layers align by row index (row i corresponds to the same mission across planning/vehicle/control layers). Shared columns (`start_lat/lon`, `goal_lat/lon`, `path_length_m`) serve as join keys. Cross-region comparisons use the `region` column added to each dataset.
 
 **2.8 Recommended data splits?**
 Yes. Stratified 80/10/10 train/val/test splits by `risk_label` are in `outputs/splits/` as numpy index arrays. Seed: 42. See `scripts/ml/baseline_experiments.py`.
