@@ -1,8 +1,12 @@
+# =============================================================================
 # Python
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyd
+*.pyo
 .Python
 build/
 develop-eggs/
@@ -10,34 +14,43 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
 MANIFEST
+wheels/
+share/python-wheels/
+sdist/
+var/
 
+# =============================================================================
 # Virtual environments
+# =============================================================================
+.venv/
 venv/
-ENV/
 env/
-.venv
+ENV/
 
-# IDEs
+# =============================================================================
+# IDEs & editors
+# =============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Testing
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# Testing & coverage
+# =============================================================================
 .pytest_cache/
+.benchmarks/
 .coverage
 .coverage.*
 coverage.xml
@@ -46,69 +59,56 @@ htmlcov/
 .nox/
 .hypothesis/
 
-# Type checking
+# =============================================================================
+# Type checking & linting
+# =============================================================================
 .mypy_cache/
 .dmypy.json
 dmypy.json
 .pytype/
 .pyre/
+.ruff_cache/
 
+# =============================================================================
 # Jupyter
-.ipynb_checkpoints
-*.ipynb
+# =============================================================================
+.ipynb_checkpoints/
+# NOTE: *.ipynb files are tracked (tutorial notebook is part of the artifact)
 
-# Documentation
-docs/_build/
-docs/_static/
-docs/_templates/
+# =============================================================================
+# Claude Code (AI assistant tool state — not research artifact)
+# =============================================================================
+.claude/
 
-# Data files (large datasets)
-*.tif
-*.tiff
-*.nc
-*.hdf5
-*.h5
-*.las
-*.laz
-*.zarr
+# =============================================================================
+# Other tooling
+# =============================================================================
+.zencoder/
+.zenflow/
+mlruns/
+mlflow.db
+wandb/
 
-# Temporary files
+# =============================================================================
+# Temporary / log files
+# =============================================================================
 *.tmp
 *.log
 *.bak
-
-# OS files
-Thumbs.db
-.DS_Store
-
-# MLflow
-mlruns/
-mlflow.db
-
-# Weights & Biases
-wandb/
-
-# Output files
-outputs/
-results/
-figures/
-*.png
-*.pdf
-*.svg
-!architecture/*.png
-
-# Cache
-.cache/
 *.cache
+.cache/
 
-# Compiled C extensions
+# API response caches (reproducible from public APIs, not source-of-truth data)
+datasets/*/perception*/cache/
+
+# =============================================================================
+# Compiled C extensions (for any Cython modules)
+# =============================================================================
 *.c
 *.cpp
-*.pyd
-*.pyo
 
-# Distribution / packaging
-.Python
-env/
+# =============================================================================
+# Distribution / packaging (duplicates from above, kept for clarity)
+# =============================================================================
 build/
-
+dist/
