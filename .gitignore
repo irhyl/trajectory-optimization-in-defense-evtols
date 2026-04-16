@@ -101,6 +101,11 @@ wandb/
 # API response caches (reproducible from public APIs, not source-of-truth data)
 datasets/*/perception*/cache/
 
+# Large perception full-dataset CSVs and PKLs (200-224 MB — exceed GitHub 100 MB limit)
+# The parquet/feather/h5 versions are tracked instead; these are CSV/pickle exports.
+**/perception_full_dataset.csv
+datasets/delhi/perception_dataset/exports/perception_full_dataset.pkl
+
 # =============================================================================
 # Compiled C extensions (for any Cython modules)
 # =============================================================================
