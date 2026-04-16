@@ -9,25 +9,42 @@ This document provides complete schema definitions for all four datasets, guidan
 ```python
 import pandas as pd
 
-# Perception dataset (1,057,714 rows × 28 columns, 44 MB)
-perc = pd.read_parquet(
-    "outputs/perception_dataset/exports/perception_full_dataset.parquet"
-)
+# --- Delhi (primary, 10,000-mission benchmark region) ---
+plan = pd.read_parquet("outputs/delhi/planning_dataset/planning_dataset_10k.parquet")
+veh  = pd.read_parquet("outputs/delhi/vehicle/vehicle_dataset.parquet")
+ctrl = pd.read_parquet("outputs/delhi/control/control_dataset.parquet")
 
-# Planning dataset (2,000 rows × 25 columns, 270 KB)
-plan = pd.read_parquet("outputs/planning_dataset/test_final.parquet")
+# --- Other regions (2,000 missions each) ---
+for region in ["mumbai", "bangalore", "arunachal", "odisha", "ladakh"]:
+    plan_r = pd.read_parquet(f"outputs/{region}/planning/planning_dataset.parquet")
+    veh_r  = pd.read_parquet(f"outputs/{region}/vehicle/vehicle_dataset.parquet")
+    ctrl_r = pd.read_parquet(f"outputs/{region}/control/control_dataset.parquet")
 
-# Vehicle dataset (2,000 rows × 95 columns, 911 KB)
-veh  = pd.read_parquet("outputs/vehicle/vehicle_dataset.parquet")
-
-# Control dataset (2,000 rows × 76 columns, 990 KB)
-ctrl = pd.read_parquet("outputs/control/control_dataset.parquet")
+# --- 80/10/10 stratified splits (by risk_label) per region ---
+train = pd.read_parquet("outputs/delhi/splits/train.parquet")
+val   = pd.read_parquet("outputs/delhi/splits/val.parquet")
+test  = pd.read_parquet("outputs/delhi/splits/test.parquet")
 ```
 
-All datasets are stored as Apache Parquet. They are also available as:
-- `.csv` — for tools that cannot read Parquet
-- `.npz` — for NumPy-native workflows (vehicle and control layers)
-- `.h5` / `.feather` / `.pkl` — additional formats for the planning dataset
+All datasets are stored as Apache Parquet (primary format). The `outputs/` directory is
+organized as:
+
+```
+outputs/
+├── delhi/
+│   ├── planning_dataset/   planning_dataset_10k.parquet  (10K rows × 25 cols)
+│   ├── vehicle/            vehicle_dataset.parquet        (10K rows × 95 cols)
+│   ├── control/            control_dataset.parquet        (10K rows × 76 cols)
+│   ├── perception/         perception data for NCR region
+│   ├── splits/             train.parquet, val.parquet, test.parquet
+│   └── ml/                 baseline model results
+├── mumbai/        (same structure, 2K rows each)
+├── bangalore/     (same structure, 2K rows each)
+├── arunachal/     (same structure, 2K rows each)
+├── odisha/        (same structure, 2K rows each; obstacle_cost=1.0 due to API timeout)
+├── ladakh/        (same structure, 2K rows each)
+└── planning_dataset/  planning_dataset_10k.parquet  (legacy fallback copy)
+```
 
 ---
 
