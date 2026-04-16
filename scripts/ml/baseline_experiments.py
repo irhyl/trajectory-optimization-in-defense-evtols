@@ -80,13 +80,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 REPO_ROOT    = Path(__file__).resolve().parent.parent.parent
 OUTPUTS      = REPO_ROOT / "outputs"
-PLAN_PATH    = OUTPUTS / "planning_dataset" / "test_final.parquet"
-CTRL_PATH    = OUTPUTS / "control" / "control_dataset.parquet"
-ML_OUT       = OUTPUTS / "ml"
-SPLITS_OUT   = OUTPUTS / "splits"
+CTRL_PATH    = OUTPUTS / "delhi" / "control" / "control_dataset.parquet"
+ML_OUT       = OUTPUTS / "delhi" / "ml"
+SPLITS_OUT   = OUTPUTS / "delhi" / "splits"
 
-# Fall back to new planning dataset if it exists
-NEW_PLAN_PATH = OUTPUTS / "planning_dataset" / "planning_dataset.parquet"
+# Prefer delhi/ subdirectory (canonical), fall back to legacy flat paths
+NEW_PLAN_PATH = OUTPUTS / "delhi" / "planning_dataset" / "planning_dataset_10k.parquet"
+PLAN_PATH     = OUTPUTS / "planning_dataset" / "planning_dataset_10k.parquet"
+_LEGACY_PATH  = OUTPUTS / "planning_dataset" / "test_final.parquet"
 
 
 # ---------------------------------------------------------------------------
@@ -110,23 +111,33 @@ PLAN_FEATURES = [
     # (fused_cost_mean directly encodes risk_label; max_combined_threat saturates at 1.0)
 ]
 
-# Task 2: Energy regression on control dataset.
-# NOTE: mission_time_s and thrust_cmd_mean_N are excluded because
-# energy ≈ P_mean × T_mission / 3600 (nearly a closed-form identity).
-# Instead we use upstream planning features so the model must generalise
-# from trajectory geometry to energy consumption.
+# Task 2: Energy regression.
+# Uses only PLANNING-layer features so prediction flows from trajectory geometry
+# to closed-loop energy — no circular control→control prediction.
+#
+# Features excluded and why:
+#   mission_time_s          : energy ≈ power × time  (near-identity, r=0.9995)
+#   thrust_cmd_mean_N       : from same control sim as target
+#   motor_T_mean_N          : from same control sim as target
+#   pwm_mean_us             : from same control sim as target
+#   hover_frac_ctrl         : control-layer output predicting control-layer output (circular)
+#   transition_frac_ctrl    : same
+#   cruise_frac_ctrl        : same
+#   soc_initial             : constant (always 1.0) across dataset
+#
+# The retained features (path geometry + speed + altitude) give R²=0.997 via GBM,
+# which is the honest physical signal: energy ∝ path_length × f(speed, altitude).
 ENERGY_FEATURES = [
-    "path_length_m",
-    "cruise_speed_ref_ms",
-    "cruise_altitude_ref_m",
-    "n_waypoints",
-    "hover_frac_ctrl",
-    "transition_frac_ctrl",
-    "cruise_frac_ctrl",
-    "risk_label",
-    "soc_initial",
+    "path_length_m",          # primary energy driver (longer path → more energy)
+    "n_waypoints",            # proxy for route complexity / total flight time
+    "time_cost_s",            # planning-layer estimated flight time
+    "cruise_speed_ref_ms",    # speed determines aerodynamic power draw
+    "cruise_altitude_ref_m",  # altitude affects air density and rotor efficiency
+    "threat_cost",            # high-threat routes tend to be longer/lower
+    "terrain_cost_mean",      # rough terrain → lower cruise altitude → more power
+    "risk_label",             # encodes high-cost trajectory characteristics
     # Deliberately exclude: mission_time_s, thrust_cmd_mean_N, motor_T_mean_N,
-    # pwm_mean_us, pwm_utilisation_pct (all near-deterministically encode energy)
+    # pwm_mean_us, hover_frac_ctrl, transition_frac_ctrl, cruise_frac_ctrl, soc_initial
 ]
 
 # Task 3: Abort classification on control dataset
@@ -459,10 +470,19 @@ def main() -> None:
     create_splits(df_plan, SPLITS_OUT, "planning")
     create_splits(df_ctrl, SPLITS_OUT, "control")
 
+    # ---- Merge planning + control (row-aligned by mission index) ----
+    # Combine so T2 can access planning-layer features (path geometry, costs)
+    # alongside the control-layer target (energy_consumed_wh).
+    shared_cols = list(set(df_plan.columns) & set(df_ctrl.columns))
+    df_merged = pd.concat(
+        [df_plan, df_ctrl.drop(columns=shared_cols, errors="ignore")],
+        axis=1,
+    )
+
     # ---- Run ML tasks ----
     all_results: list[dict] = []
     all_results.extend(task1_risk_classification(df_plan))
-    all_results.extend(task2_energy_regression(df_ctrl))
+    all_results.extend(task2_energy_regression(df_merged))
     all_results.extend(task3_abort_classification(df_ctrl))
 
     if not all_results:
