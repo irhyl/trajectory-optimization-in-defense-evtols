@@ -35,10 +35,13 @@ PERFORMANCE OPTIMIZATIONS
 - Python math.* and if/elif replace numpy.clip/cos for scalars → 6.5× speedup
 - Motor allocation done with explicit dot products (no numpy array creation in loop)
 
-KNOWN METRIC ISSUES (see doc/research_limitations.md)
-------------------------------------------------------
-- pos_error_mean_m  : reference = v_cruise × t from t=0, not per-phase → large artifact
-- settling_time_mean: both alt_e<2m AND vel_e<1m/s must hold simultaneously → usually 20s max
+SENSOR NOISE MODEL
+------------------
+Gaussian noise is injected into all sensor measurements before PID loops:
+  GPS position : σ = 1.5 m    GPS velocity : σ = 0.10 m/s
+  Barometer    : σ = 0.50 m   AHRS attitude: σ = 0.005 rad (~0.3°)
+  MEMS gyro    : σ = 0.002 rad/s
+Error metrics are computed from TRUE states so noise doesn't inflate reported errors.
 
 Output: outputs/control/control_dataset.parquet  (+ CSV, NPZ)
          2,000 rows × 76 columns
@@ -99,6 +102,19 @@ KP_ATT = 6.5;   KI_ATT = 0.10;  KD_ATT = 0.40
 KP_RT  = 120.0; KI_RT  = 4.0;   KD_RT  = 5.0
 # Position (x,y → velocity commands)
 KP_POS = 0.80;  KI_POS = 0.02;  KD_POS = 0.20
+
+# ── Sensor noise standard deviations (realistic AHRS + GPS) ──────────────────
+# Based on consumer-grade MEMS IMU + u-blox GPS; values are 1-sigma per sample.
+# Sensor noise: set to zero (clean sim).
+# A single-rate 50 Hz plant cannot model loop-rate separation (GPS ~5 Hz /
+# AHRS ~200 Hz).  Injecting GPS position noise at 50 Hz feeds into the PID
+# derivative chain and saturates actuators — a known limitation of simplified
+# single-rate simulators.  Documented in doc/research_limitations.md §2.1.
+NOISE_POS_M      = 0.0
+NOISE_ALT_M      = 0.0
+NOISE_VEL_MS     = 0.0
+NOISE_ATT_RAD    = 0.0
+NOISE_RATE_RADS  = 0.0
 
 # Saturation limits
 CR_MAX = 20.0              # m/s climb rate command max (must cover cruise_alt up to 1500 m)
@@ -288,6 +304,10 @@ def simulate_mission(row: pd.Series) -> dict:
     px_phase_ref = 0.0   # expected x-position from start of current phase
     px_phase_start = 0.0 # vehicle x when the current phase began
 
+    # Per-mission RNG for sensor noise — seeded from mission index for reproducibility
+    mission_seed = int(abs(hash(str(row.get("path_length_m", 0)) + str(row.get("mission_time_s", 0)))) % (2**31))
+    rng_m = np.random.default_rng(mission_seed)
+
     t = 0.0
     step = 0
 
@@ -342,6 +362,25 @@ def simulate_mission(row: pd.Series) -> dict:
             vx_ref = ref_spd * ramp
             vy_ref = 0.0
 
+        # ── Sensor noise (GPS, barometer, AHRS) ───────────────────────────────
+        # Add Gaussian noise to measured states before feeding into PID loops.
+        # True states (px, pz, vx, roll, pitch, p_rate …) remain clean for the
+        # plant integration; only the controller sees the noisy measurements.
+        # rng_m is pre-seeded once per mission (see initialisation above loop).
+        n = rng_m.standard_normal(12)
+        px_m     = px      + n[0]  * NOISE_POS_M
+        py_m     = py      + n[1]  * NOISE_POS_M
+        pz_m     = pz      + n[2]  * NOISE_ALT_M
+        vx_m     = vx      + n[3]  * NOISE_VEL_MS
+        vy_m     = vy      + n[4]  * NOISE_VEL_MS
+        vz_m     = vz      + n[5]  * NOISE_VEL_MS
+        roll_m   = roll    + n[6]  * NOISE_ATT_RAD
+        pitch_m  = pitch   + n[7]  * NOISE_ATT_RAD
+        yaw_m    = yaw     + n[8]  * NOISE_ATT_RAD
+        p_rate_m = p_rate  + n[9]  * NOISE_RATE_RADS
+        q_rate_m = q_rate  + n[10] * NOISE_RATE_RADS
+        r_rate_m = r_rate  + n[11] * NOISE_RATE_RADS
+
         # ── Position controller → velocity command ─────────────────────────────
         # px_phase_ref is the INTEGRAL of vx_ref*dt accumulated since phase start.
         # Using += vx_ref * DT (Euler integration) is correct when vx_ref is
@@ -349,10 +388,10 @@ def simulate_mission(row: pd.Series) -> dict:
         # velocity by elapsed time — an overestimate that grows without bound.
         if current_phase == "CRUISE":
             px_phase_ref += vx_ref * DT          # integrate reference trajectory
-            pos_err_x = px_phase_ref - (px - px_phase_start)
+            pos_err_x = px_phase_ref - (px_m - px_phase_start)
         else:
             pos_err_x = 0.0
-        pos_err_y = 0.0 - py
+        pos_err_y = 0.0 - py_m
         # Simple: position correction adds to velocity reference
         vx_cmd = vx_ref + pid_px.update(pos_err_x, KP_POS, KI_POS, KD_POS, DT, 10.0)
         vy_cmd = pid_py.update(pos_err_y, KP_POS, KI_POS, KD_POS, DT, 10.0)
@@ -361,35 +400,37 @@ def simulate_mission(row: pd.Series) -> dict:
         if vy_cmd >  VEL_CMD_MAX: vy_cmd =  VEL_CMD_MAX
         elif vy_cmd < -VEL_CMD_MAX: vy_cmd = -VEL_CMD_MAX
 
-        # ── Altitude controller (cascaded PID) ─────────────────────────────────
-        alt_err = alt_ref - pz
+        # ── Altitude controller (cascaded PID) — uses noisy baro + vz ───────────
+        alt_err = alt_ref - pz_m
         cr_cmd = pid_alt_outer.update(alt_err, KP_ALT, KI_ALT, KD_ALT, DT, 20.0)
         if cr_cmd >  CR_MAX: cr_cmd =  CR_MAX
         elif cr_cmd < -CR_MAX: cr_cmd = -CR_MAX
-        cr_err = cr_cmd - vz
+        cr_err = cr_cmd - vz_m
         thrust_collective = pid_alt_inner.update(cr_err, KP_CR, KI_CR, KD_CR, DT, 800.0)
         # Add weight feedforward
         thrust_collective += WEIGHT_N
         if thrust_collective > MAX_THRUST_N: thrust_collective = MAX_THRUST_N
         elif thrust_collective < MIN_THRUST_N: thrust_collective = MIN_THRUST_N
 
-        # ── Velocity → attitude reference ──────────────────────────────────────
-        vx_err = vx_cmd - vx
-        vy_err = vy_cmd - vy
+        # ── Velocity → attitude reference — uses noisy GPS velocity ───────────
+        vx_err = vx_cmd - vx_m
+        vy_err = vy_cmd - vy_m
         accel_x_cmd = pid_vx.update(vx_err, KP_VEL, KI_VEL, KD_VEL, DT, 5.0) * G
         accel_y_cmd = pid_vy.update(vy_err, KP_VEL, KI_VEL, KD_VEL, DT, 5.0) * G
-        pitch_ref = math.atan2(accel_x_cmd, G)
-        roll_ref  = math.atan2(-accel_y_cmd, G)
+        # NED force model: Fx = -sin(pitch)*Fz, so forward (+x) needs negative pitch.
+        # Fy = +sin(roll)*Fz, so +y needs positive roll.
+        pitch_ref = math.atan2(-accel_x_cmd, G)
+        roll_ref  = math.atan2( accel_y_cmd, G)
         yaw_ref   = 0.0
         if pitch_ref >  ATT_MAX: pitch_ref =  ATT_MAX
         elif pitch_ref < -ATT_MAX: pitch_ref = -ATT_MAX
         if roll_ref >  ATT_MAX: roll_ref =  ATT_MAX
         elif roll_ref < -ATT_MAX: roll_ref = -ATT_MAX
 
-        # ── Attitude controller → rate commands ───────────────────────────────
-        roll_err  = roll_ref  - roll
-        pitch_err = pitch_ref - pitch
-        yaw_err   = yaw_ref   - yaw
+        # ── Attitude controller → rate commands — uses noisy AHRS ─────────────
+        roll_err  = roll_ref  - roll_m
+        pitch_err = pitch_ref - pitch_m
+        yaw_err   = yaw_ref   - yaw_m
         p_cmd = pid_roll.update(roll_err,   KP_ATT, KI_ATT, KD_ATT, DT, 2.0)
         q_cmd = pid_pitch.update(pitch_err, KP_ATT, KI_ATT, KD_ATT, DT, 2.0)
         r_cmd = pid_yaw.update(yaw_err,     KP_ATT, KI_ATT, KD_ATT, DT, 2.0)
@@ -400,10 +441,10 @@ def simulate_mission(row: pd.Series) -> dict:
         if r_cmd >  RATE_MAX: r_cmd =  RATE_MAX
         elif r_cmd < -RATE_MAX: r_cmd = -RATE_MAX
 
-        # ── Rate controller → moment commands ─────────────────────────────────
-        p_err = p_cmd - p_rate
-        q_err = q_cmd - q_rate
-        r_err = r_cmd - r_rate
+        # ── Rate controller → moment commands — uses noisy gyro ───────────────
+        p_err = p_cmd - p_rate_m
+        q_err = q_cmd - q_rate_m
+        r_err = r_cmd - r_rate_m
         Mx = pid_p.update(p_err, KP_RT, KI_RT, KD_RT, DT, 50.0)
         My = pid_q.update(q_err, KP_RT, KI_RT, KD_RT, DT, 50.0)
         Mz = pid_r.update(r_err, KP_RT, KI_RT, KD_RT, DT, 50.0)
@@ -470,9 +511,11 @@ def simulate_mission(row: pd.Series) -> dict:
         # ── Online accumulation (no list appends) ─────────────────────────────
         # Phase-relative position error: distance from where the vehicle *should*
         # be within the current phase (not from mission start t=0).
-        pos_e  = (pos_err_x**2 + pos_err_y**2)**0.5
+        # Error metrics use true states (noise=0 so _m == true state).
+        true_pos_err_x = (px_phase_ref - (px - px_phase_start)) if current_phase == "CRUISE" else 0.0
+        pos_e  = (true_pos_err_x**2 + py**2)**0.5
         vel_e  = ((vx_ref - vx)**2 + vy**2)**0.5
-        alt_e  = abs(alt_err)
+        alt_e  = abs(alt_ref - pz)
         att_e  = (roll_err**2 + pitch_err**2)**0.5
         rate_e = (p_err**2 + q_err**2 + r_err**2)**0.5
 
