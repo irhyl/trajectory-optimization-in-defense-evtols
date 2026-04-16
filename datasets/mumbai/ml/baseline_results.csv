@@ -1,0 +1,7 @@
+region,task,model,type,metric1,value1,metric2,value2,metric3,value3,n_samples,n_features,cv_folds,runtime_s
+mumbai,T1:RiskClassification,LogisticRegression,classification,AUC-ROC,0.9991,F1,0.9516,Accuracy,0.9885,2000,8,5,0.1
+mumbai,T1:RiskClassification,GradientBoosting,classification,AUC-ROC,0.9942,F1,0.9,Accuracy,0.976,2000,8,5,5.77
+mumbai,T1:RiskClassification,MLP,classification,AUC-ROC,0.999,F1,0.9463,Accuracy,0.987,2000,8,5,6.48
+mumbai,T2:EnergyRegression,Ridge,regression,R²,0.9905,MAE,79.702,—,,2000,8,5,0.03
+mumbai,T2:EnergyRegression,GradientBoosting,regression,R²,0.9964,MAE,32.2314,—,,2000,8,5,4.16
+mumbai,T2:EnergyRegression,MLP,regression,R²,0.9893,MAE,94.6703,—,,2000,8,5,11.12

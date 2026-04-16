@@ -1,0 +1,109 @@
+{
+  "generated_at": "2026-04-15T04:37:05.488007+00:00",
+  "wall_time_s": 35.9,
+  "theatre": "Delhi NCR outskirts, India",
+  "lat_bounds": [
+    18.85,
+    19.35
+  ],
+  "lon_bounds": [
+    72.75,
+    73.35
+  ],
+  "grid_spacing_deg": {
+    "lat": 0.002,
+    "lon": 0.002
+  },
+  "n_lat": 251,
+  "n_lon": 301,
+  "alt_levels_m": [
+    50,
+    100,
+    150,
+    200,
+    300,
+    400,
+    500,
+    600,
+    700,
+    800,
+    900,
+    1000,
+    1200,
+    1500
+  ],
+  "n_spatial_points": 75551,
+  "n_total_rows": 1057714,
+  "terrain": {
+    "source": "Open-Meteo Elevation API (SRTM 30 m)",
+    "coarse_fetch_m": 2000,
+    "interp_method": "bilinear",
+    "elev_range_m": [
+      0.0,
+      767.2273267396376
+    ],
+    "slope_mean_deg": 1.2839575268803847
+  },
+  "wind": {
+    "source": "Open-Meteo Weather API (GFS/HRES)",
+    "forecast_hours": 6,
+    "speed_mean_mps": 11.957030606234023,
+    "speed_max_mps": 26.59999999992807
+  },
+  "obstacles": {
+    "source": "OpenStreetMap Overpass API",
+    "n_obstacles": 16086,
+    "nearest_dist_min_m": 1.2278999384136131
+  },
+  "threat": {
+    "method": "Swerling-I radar range equation",
+    "n_sam_systems": 3,
+    "evtol_rcs_sqm": 0.5,
+    "sam_systems": [
+      {
+        "name": "S-125_site_A",
+        "lat": 19.07,
+        "lon": 72.88,
+        "max_range_km": 35.0
+      },
+      {
+        "name": "Barak_8_site_B",
+        "lat": 18.95,
+        "lon": 73.05,
+        "max_range_km": 70.0
+      },
+      {
+        "name": "Akash_site_C",
+        "lat": 19.2,
+        "lon": 72.95,
+        "max_range_km": 25.0
+      }
+    ],
+    "combined_pd_mean": 0.9979523991535705,
+    "combined_pd_max": 0.9999999999999211
+  },
+  "fusion": {
+    "weights": {
+      "terrain": 0.15,
+      "wind": 0.1,
+      "obstacle": 0.2,
+      "threat": 0.4,
+      "energy": 0.15
+    },
+    "fused_mean": 0.539444798518631,
+    "fused_std": 0.06336914728693055
+  },
+  "output_files": [
+    "perception_terrain.csv",
+    "perception_obstacle.csv",
+    "osm_obstacle_inventory.csv",
+    "perception_full_dataset.csv"
+  ],
+  "data_policy": "Real data \u2014 no synthetic fallbacks.",
+  "references": [
+    "Rodriguez et al. (2006) SRTM topographic products, PE&RS 72(3)",
+    "Skolnik, M. (2008) Radar Handbook 3rd Ed. McGraw-Hill",
+    "OpenStreetMap contributors, ODbL",
+    "Open-Meteo API (GFS/HRES forecast)"
+  ]
+}
