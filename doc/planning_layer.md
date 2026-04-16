@@ -995,10 +995,17 @@ src/evtol/planning/
 │   ├── online_replanning_interface.py
 │   └── execution_integration_phase2e.py   # 50 Hz control loop
 │
-├── rrt_star.py            # Standalone RRT* (Phase 2C-1)
-├── nsga3_optimizer.py     # Standalone NSGA-III (Phase 2C-2)
+├── rrt_star.py            # CANONICAL threat-aware RRT* for defense missions
+│                          #   Extends algorithms/sampling.py with SAM cost weighting,
+│                          #   NED↔lat/lon bridging, γ per Karaman & Frazzoli 2011 §38
+├── nsga3_optimizer.py     # Thin re-export of optimization/nsga3.py (for direct import)
 └── perception_integration.py  # Perception → Planning bridge
 ```
+
+> **Note:** `algorithms/sampling.py` is the generic RRT/RRT*/Informed-RRT* framework.
+> `rrt_star.py` is the canonical implementation for actual mission runs — use it for
+> any defense-mission planning task. The two files are intentionally separate so the
+> generic framework can be unit-tested independently.
 
 **Import graph** (no circular dependencies):
 ```
@@ -1013,22 +1020,23 @@ perception_integration → core
 
 ## 15. Audit Findings & Limitations
 
-### 15.1 Dataset Audit (2026-04-05)
+### 15.1 Dataset Audit (2026-04-15, multi-region)
 
 | Check | Result |
 |---|---|
-| Total rows | 2000 |
-| NaN values | 0 across all 25 columns |
-| `feasible` / `altitude_clearance_ok` / `speed_ok` | All constant = 1 (only feasible trajectories retained — these columns are uninformative for ML classification) |
-| `threat_cost` variance | $\sigma = 0.0001$ — near-constant at 1.0; 43 extreme outliers |
-| `max_combined_threat` variance | $\sigma = 0.0$ — constant at 1.0 for all rows |
-| Class balance | 74% Low Risk, 26% High Risk |
-| Module import failures | 0 of 119 source modules |
+| Total rows (Delhi 10K) | 10,000 |
+| Total rows (5 other regions × 2K) | 10,000 |
+| NaN values | 0 across all 25 planning columns |
+| `feasible` / `altitude_clearance_ok` / `speed_ok` | All constant = 1 (only feasible trajectories retained) |
+| `threat_cost` variance | Mean=0.79, std=0.12, range 0.45–1.0 (genuine spatial gradient, fixed via distance-decay model) |
+| `max_combined_threat` | 1.0 everywhere — retained for disclosure; not used as planning input |
+| Class balance (Delhi) | ~74% Low Risk, 26% High Risk |
+| Module import failures | 0 (all core imports verified) |
 
-**Recommendation**: The constant `threat_cost` and `max_combined_threat` columns suggest that
-the threat field is uniformly saturated at the maximum value for the test dataset's altitude
-range. A future dataset should vary the altitude more broadly (50–1500 m) and include
-trajectories that pass through terrain-masked low-altitude corridors.
+**Fix applied (2026-04-03):** `_compute_threat_gradient()` in `scripts/planning/dataset.py` now
+uses shortened effective ranges (20–30 km per emitter) to produce a distance-decay threat field
+with genuine spatial variation. The physics-based `combined_threat_prob` (= 1.0 everywhere) is
+retained in the perception CSV for disclosure purposes only.
 
 ### 15.2 Vehicle / Control Layer Readiness
 
