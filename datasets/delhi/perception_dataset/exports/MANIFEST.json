@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-04-04T13:25:34.955048+00:00",
+  "total_files": 16,
+  "total_size_bytes": 255915466,
+  "files": [
+    {
+      "file": "perception_full_dataset.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Full dataset \u2014 columnar format, compressed",
+      "size_bytes": 45874991,
+      "sha256": "34e9a2b717786f294e32897793c106fbbfdc4b878f906cb3f1d2ec4e0938124f"
+    },
+    {
+      "file": "perception_terrain.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Terrain layer subset",
+      "size_bytes": 6475312,
+      "sha256": "252ccbdc21295375c508e919662453f6e3c5453b54edaaee83f9b74679f05d51"
+    },
+    {
+      "file": "perception_wind.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Wind layer subset",
+      "size_bytes": 11166709,
+      "sha256": "64b3188eb3ab31ca99480e71ae65e55b1463863c511e640ed0015a4be6f8cf18"
+    },
+    {
+      "file": "perception_obstacle.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Obstacle layer subset",
+      "size_bytes": 2387249,
+      "sha256": "5999964fd84183b725c63377752a81386ff0b3d9aa6d93a1119cd89bfc23c688"
+    },
+    {
+      "file": "perception_threat.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Threat layer subset",
+      "size_bytes": 4180149,
+      "sha256": "cf4bedac6aaf9305f11f1763630e66ebd1942ff5d93e337d8fc0e5947dca32ab"
+    },
+    {
+      "file": "perception_fusion.parquet",
+      "format": "Parquet/Snappy",
+      "description": "Fusion layer subset",
+      "size_bytes": 11014251,
+      "sha256": "1d55233be625f9eb1f3ebe044cd8546d8421016db2027bc6dfae9d2eade5776e"
+    },
+    {
+      "file": "perception_full_dataset.h5",
+      "format": "HDF5/GZIP-6",
+      "description": "Full dataset \u2014 hierarchical, compressed, self-describing",
+      "size_bytes": 126403596,
+      "sha256": "61875ea40238b33888cc88dd5d8e689ac6d6d8b275d182dd2761ed98a9c772b3"
+    },
+    {
+      "file": "perception_full_dataset.npz",
+      "format": "NumPy/NPZ",
+      "description": "Numeric columns only, compressed",
+      "size_bytes": 35205510,
+      "sha256": "403443eb60ba16df792fe9789bd7ba6cecb3f1d8206b62bfbafff2f71071f580"
+    },
+    {
+      "file": "perception_3d_arrays.npz",
+      "format": "NumPy/NPZ",
+      "description": "3D arrays (alt, lat, lon) for key columns",
+      "size_bytes": 13168949,
+      "sha256": "dbd40d065040d8f28a2ea3f4947122cdbc593e65d6830892ec267546fb75a142"
+    },
+    {
+      "file": "dataset_statistics.csv",
+      "format": "CSV",
+      "description": "Descriptive statistics for all numeric columns",
+      "size_bytes": 4590,
+      "sha256": "2f11f02473de06ce397357d71cc2f9b762052a481c8cdb2a1d4793d49dad5587"
+    },
+    {
+      "file": "dataset_statistics.json",
+      "format": "JSON",
+      "description": "Statistics + provenance, machine-readable",
+      "size_bytes": 15134,
+      "sha256": "8fdffbe3049060fca2d77559d9d003ceb5901bdd230ade310d61fbcf96b77e7a"
+    },
+    {
+      "file": "dataset_statistics.tex",
+      "format": "LaTeX",
+      "description": "Statistics table suitable for journal papers",
+      "size_bytes": 3268,
+      "sha256": "2a9a2b34079a79215c16b04b2a8e6e039724df548d9d437b51c9f598621164dd"
+    },
+    {
+      "file": "references.bib",
+      "format": "BibTeX",
+      "description": "Citation file for all data sources and key references",
+      "size_bytes": 1903,
+      "sha256": "49fb718cda02169ffec886c0a0df36390c1e3437b9ee3d40b4865d6bbe7c0a5d"
+    },
+    {
+      "file": "dataset_metadata.jsonld",
+      "format": "JSON-LD",
+      "description": "Schema.org Dataset descriptor for semantic web / Zenodo",
+      "size_bytes": 5165,
+      "sha256": "872ae6903521a93a16c149b7725166271ed9279e6a17d21bf5f42322076d9d47"
+    },
+    {
+      "file": "dataset_statistics_report.html",
+      "format": "HTML",
+      "description": "Human-readable statistics report (browser viewable)",
+      "size_bytes": 6016,
+      "sha256": "928602c491c73d3be0db7ddf71e693dfd0b5284652345b5ac2011fc12477814c"
+    },
+    {
+      "file": "dataset_card.yaml",
+      "format": "YAML",
+      "description": "HuggingFace-style dataset card",
+      "size_bytes": 2674,
+      "sha256": "330b63396eb8d5a7396fe7add09e894c08bf1ed1f8e4c7e07fd0f083e7c7a68a"
+    }
+  ]
+}

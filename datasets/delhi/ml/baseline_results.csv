@@ -1,0 +1,7 @@
+task,model,type,metric1,value1,metric2,value2,metric3,value3,n_samples,n_features,cv_folds,runtime_s
+T1:RiskClassification,LogisticRegression,classification,AUC-ROC,0.9995,F1,0.9786,Accuracy,0.9885,2000,8,5,0.09
+T1:RiskClassification,GradientBoosting,classification,AUC-ROC,0.9929,F1,0.9565,Accuracy,0.9765,2000,8,5,6.84
+T1:RiskClassification,MLP,classification,AUC-ROC,0.9996,F1,0.9824,Accuracy,0.9905,2000,8,5,7.68
+T2:EnergyRegression,Ridge,regression,R²,0.9896,MAE,84.9918,—,,2000,8,5,0.02
+T2:EnergyRegression,GradientBoosting,regression,R²,0.9972,MAE,33.573,—,,2000,8,5,4.62
+T2:EnergyRegression,MLP,regression,R²,0.99,MAE,95.1399,—,,2000,8,5,14.1

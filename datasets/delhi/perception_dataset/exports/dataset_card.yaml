@@ -1,0 +1,78 @@
+# Dataset Card — Defense eVTOL Perception Dataset
+
+dataset_name: perception_delhi_ncr_2026
+version: "2.0.0"
+generated_at: "2026-04-04T07:13:16Z"
+
+description: >
+  Multi-layer environmental perception dataset for defense eVTOL trajectory
+  optimization. Covers terrain, wind, obstacle, threat, and fused cost fields
+  over the Delhi NCR operational theatre.
+
+theatre:
+  name: "Delhi NCR outskirts, India"
+  lat_bounds: [28.4, 28.9]
+  lon_bounds: [76.9, 77.5]
+  area_km2: 3025  # ~55 km × 55 km
+
+grid:
+  lat_spacing_deg: 0.002
+  lon_spacing_deg: 0.002
+  lat_spacing_m: 222
+  lon_spacing_m: 195
+  n_lat: 251
+  n_lon: 301
+  n_spatial_points: 75551
+  n_altitude_levels: 14
+  altitude_levels_m: [50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1500]
+  total_rows: 1057714
+  n_columns: 28
+
+data_sources:
+  terrain:
+    name: "NASA SRTM (Open-Meteo Elevation API)"
+    url: "https://open-meteo.com/en/docs/elevation-api"
+    resolution_m: 30
+    vertical_datum: "EGM96"
+    accuracy_m_1sigma: 16
+    license: "Public Domain (NASA)"
+  wind:
+    name: "GFS/HRES (Open-Meteo Forecast API)"
+    url: "https://open-meteo.com/en/docs"
+    model: "NOAA GFS 0.25deg + ECMWF HRES 0.1deg"
+    forecast_hours: 6
+    license: "CC BY 4.0"
+  obstacles:
+    name: "OpenStreetMap"
+    url: "https://www.openstreetmap.org"
+    license: "ODbL 1.0"
+    n_obstacles: 18690
+  threat:
+    name: "Analytical (Swerling Case I)"
+    model: "Radar range equation, Swerling 1960"
+    n_sam_systems: 3
+    evtol_rcs_sqm: 0.5
+
+quality_notes:
+  - "Surface type = flat for all points: correct for Gangetic alluvial plain (slope<2.5 deg)"
+  - "Combined threat Pd ~= 1 everywhere: theatre fully inside SAM envelopes (min range 29.6 km vs R_max 100-150 km)"
+  - "Wind: single t=0 forecast snapshot, no temporal ensemble"
+
+usage:
+  planning_layer:
+    - "fused_cost: edge cost for RRT* planner"
+    - "combined_threat_prob: SAM avoidance constraints"
+    - "nearest_obstacle_dist_m: static obstacle list"
+    - "wind_u/v_mps: wind injection for vehicle simulation"
+  ml_training:
+    - "Cost classification: terrain/obstacle/threat contribution prediction"
+    - "Safe-zone segmentation (binary: fused_cost < 0.5)"
+    - "Wind field interpolation networks"
+
+citation: >
+  Defense eVTOL Research Team (2026). Defense eVTOL Perception Dataset.
+  Delhi NCR Theatre. Generated 2026-04-04. 5-layer perception dataset,
+  1,057,714 rows, sources: NASA SRTM, GFS/HRES, OpenStreetMap (ODbL),
+  Swerling-I analytical threat model.
+
+license: "ODbL 1.0 (obstacle component) + CC BY 4.0 (wind component) + Public Domain (terrain)"

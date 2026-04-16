@@ -1,0 +1,69 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{geometry}
+\geometry{margin=1.5cm}
+\begin{document}
+
+\begin{center}
+\textbf{Perception Dataset Statistics — Delhi NCR Theatre}\\
+\textit{1,057,714 rows $\times$ 28 columns, five perception layers}
+\end{center}
+
+\begin{longtable}{lrrrrr}
+\toprule
+\textbf{Column} & \textbf{Unit} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Unit} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+lat & degrees_north & 28.650 & 0.145 & 28.400 & 28.900 \\
+lon & degrees_east & 77.200 & 0.174 & 76.900 & 77.500 \\
+alt\_m & m & 600.000 & 424.685 & 50.000 & 1500.000 \\
+elev\_m & m_MSL & 217.967 & 16.373 & 190.430 & 305.040 \\
+slope\_deg & degrees & 0.159 & 0.183 & 0.000 & 2.355 \\
+roughness\_m & m & 0.469 & 0.533 & 0.000 & 6.600 \\
+terrain\_clearance\_m & m & 408.608 & 395.190 & 0.000 & 1309.570 \\
+wind\_u\_mps & m/s & 4.485 & 2.100 & 0.000 & 12.751 \\
+wind\_v\_mps & m/s & 1.302 & 4.260 & -5.778 & 14.515 \\
+wind\_w\_mps & m/s & 0.000 & 0.000 & -0.000 & 0.001 \\
+wind\_speed\_mps & m/s & 6.209 & 2.413 & 1.800 & 15.100 \\
+wind\_dir\_deg & degrees & 268.896 & 43.231 & 180.000 & 343.000 \\
+turbulence\_intensity & dimensionless & 0.251 & 0.279 & 0.000 & 1.000 \\
+nearest\_obstacle\_dist\_m & m & 795.443 & 841.099 & 1.100 & 6855.600 \\
+nearest\_obstacle\_height\_m & m & 35.708 & 11.794 & 5.000 & 300.000 \\
+T1\_detect\_prob & probability & 1.000 & 0.000 & 0.999 & 1.000 \\
+T2\_detect\_prob & probability & 0.999 & 0.001 & 0.994 & 1.000 \\
+T3\_detect\_prob & probability & 0.999 & 0.001 & 0.994 & 1.000 \\
+max\_threat\_prob & probability & 1.000 & 0.000 & 0.999 & 1.000 \\
+combined\_threat\_prob & probability & 1.000 & 0.000 & 1.000 & 1.000 \\
+terrain\_cost & dimensionless & 0.236 & 0.195 & 0.006 & 0.526 \\
+wind\_cost & dimensionless & 0.225 & 0.097 & 0.077 & 0.654 \\
+obstacle\_cost & dimensionless & 0.191 & 0.233 & 0.000 & 0.995 \\
+threat\_cost & dimensionless & 1.000 & 0.000 & 1.000 & 1.000 \\
+energy\_cost & dimensionless & 0.203 & 0.113 & 0.041 & 0.501 \\
+fused\_cost & dimensionless & 0.526 & 0.049 & 0.447 & 0.735 \\
+
+\end{longtable}
+
+\section*{Dataset Provenance}
+\begin{itemize}
+  \item \textbf{Terrain}: NASA SRTM 30\,m via Open-Meteo Elevation API (EGM96 vertical datum)
+  \item \textbf{Wind}: GFS/HRES forecast via Open-Meteo Weather API (t=0 snapshot)
+  \item \textbf{Obstacles}: OpenStreetMap contributors (ODbL), 18,690 structures
+  \item \textbf{Threat}: Analytical Swerling-I radar range equation [Skolnik 2008]
+  \item \textbf{Fusion}: Weighted linear sum $C = \sum_i w_i C_i$
+\end{itemize}
+
+\begin{thebibliography}{9}
+\bibitem{skolnik2008} Skolnik, M.~I. (2008). \textit{Radar Handbook}, 3rd Ed. McGraw-Hill.
+\bibitem{rodriguez2006} Rodriguez, E., Morris, C.~S., Belz, J.~E. (2006). A Global Assessment of the SRTM Performance. \textit{PE\&RS}, 72(3):249--260.
+\bibitem{swerling1954} Swerling, P. (1954). Probability of Detection for Fluctuating Targets. RAND RM-1217.
+\bibitem{osm2024} OpenStreetMap contributors (2024). Planet dump. ODbL.
+\end{thebibliography}
+
+\end{document}

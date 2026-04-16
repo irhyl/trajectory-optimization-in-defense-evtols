@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Perception Dataset — Statistics Report</title>
+<style>
+body { font-family: Georgia, serif; margin: 40px; max-width: 1100px; }
+h1 { color: #1a3a5c; }
+h2 { color: #2c5f8a; border-bottom: 2px solid #ccc; padding-bottom: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { background: #1a3a5c; color: white; padding: 8px 12px; text-align: left; }
+tr:nth-child(even) { background: #f5f7fa; }
+td { padding: 6px 12px; border-bottom: 1px solid #ddd; }
+.meta { background: #eef4fb; padding: 16px; border-left: 4px solid #2c5f8a; margin-bottom: 20px; }
+code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Defense eVTOL — Perception Dataset Statistics Report</h1>
+<div class="meta">
+  <strong>Theatre:</strong> Delhi NCR outskirts, India<br>
+  <strong>Bounds:</strong> 28.4&ndash;28.9&deg;N, 76.9&ndash;77.5&deg;E<br>
+  <strong>Total rows:</strong> 1,057,714 &nbsp;|&nbsp; <strong>Spatial points:</strong> 75,551 &nbsp;|&nbsp; <strong>Altitude levels:</strong> 14<br>
+  <strong>Generated:</strong> 2026-04-04T07:13:16Z<br>
+  <strong>Sources:</strong> NASA SRTM (Open-Meteo), GFS/HRES (Open-Meteo), OpenStreetMap (ODbL), Swerling-I analytical
+</div>
+
+<h2>Column Statistics</h2>
+<table>
+<thead><tr><th>Column</th><th>Unit</th><th>Mean</th><th>Std</th><th>Min</th><th>Max</th></tr></thead>
+<tbody>
+<tr><td>lat</td><td>degrees_north</td><td>28.6500</td><td>0.1449</td><td>28.4000</td><td>28.9000</td></tr>
+<tr><td>lon</td><td>degrees_east</td><td>77.2000</td><td>0.1738</td><td>76.9000</td><td>77.5000</td></tr>
+<tr><td>alt_m</td><td>m</td><td>599.9999</td><td>424.6848</td><td>50.0000</td><td>1500.0000</td></tr>
+<tr><td>elev_m</td><td>m_MSL</td><td>217.9673</td><td>16.3729</td><td>190.4300</td><td>305.0400</td></tr>
+<tr><td>slope_deg</td><td>degrees</td><td>0.1586</td><td>0.1833</td><td>0.0000</td><td>2.3550</td></tr>
+<tr><td>roughness_m</td><td>m</td><td>0.4694</td><td>0.5326</td><td>0.0000</td><td>6.6000</td></tr>
+<tr><td>terrain_clearance_m</td><td>m</td><td>408.6076</td><td>395.1902</td><td>0.0000</td><td>1309.5699</td></tr>
+<tr><td>wind_u_mps</td><td>m/s</td><td>4.4853</td><td>2.1002</td><td>0.0000</td><td>12.7513</td></tr>
+<tr><td>wind_v_mps</td><td>m/s</td><td>1.3021</td><td>4.2601</td><td>-5.7777</td><td>14.5151</td></tr>
+<tr><td>wind_w_mps</td><td>m/s</td><td>0.0000</td><td>0.0001</td><td>-0.0004</td><td>0.0006</td></tr>
+<tr><td>wind_speed_mps</td><td>m/s</td><td>6.2090</td><td>2.4126</td><td>1.8000</td><td>15.1000</td></tr>
+<tr><td>wind_dir_deg</td><td>degrees</td><td>268.8955</td><td>43.2310</td><td>180.0000</td><td>343.0000</td></tr>
+<tr><td>turbulence_intensity</td><td>dimensionless</td><td>0.2514</td><td>0.2789</td><td>0.0000</td><td>1.0000</td></tr>
+<tr><td>nearest_obstacle_dist_m</td><td>m</td><td>795.4432</td><td>841.0993</td><td>1.1000</td><td>6855.6001</td></tr>
+<tr><td>nearest_obstacle_height_m</td><td>m</td><td>35.7083</td><td>11.7937</td><td>5.0000</td><td>300.0000</td></tr>
+<tr><td>T1_detect_prob</td><td>probability</td><td>0.9998</td><td>0.0002</td><td>0.9985</td><td>1.0000</td></tr>
+<tr><td>T2_detect_prob</td><td>probability</td><td>0.9994</td><td>0.0007</td><td>0.9945</td><td>1.0000</td></tr>
+<tr><td>T3_detect_prob</td><td>probability</td><td>0.9993</td><td>0.0009</td><td>0.9939</td><td>1.0000</td></tr>
+<tr><td>max_threat_prob</td><td>probability</td><td>0.9999</td><td>0.0001</td><td>0.9991</td><td>1.0000</td></tr>
+<tr><td>combined_threat_prob</td><td>probability</td><td>1.0000</td><td>0.0000</td><td>1.0000</td><td>1.0000</td></tr>
+<tr><td>terrain_cost</td><td>dimensionless</td><td>0.2358</td><td>0.1948</td><td>0.0065</td><td>0.5262</td></tr>
+<tr><td>wind_cost</td><td>dimensionless</td><td>0.2249</td><td>0.0967</td><td>0.0767</td><td>0.6543</td></tr>
+<tr><td>obstacle_cost</td><td>dimensionless</td><td>0.1909</td><td>0.2335</td><td>0.0000</td><td>0.9947</td></tr>
+<tr><td>threat_cost</td><td>dimensionless</td><td>1.0000</td><td>0.0000</td><td>1.0000</td><td>1.0000</td></tr>
+<tr><td>energy_cost</td><td>dimensionless</td><td>0.2028</td><td>0.1130</td><td>0.0407</td><td>0.5013</td></tr>
+<tr><td>fused_cost</td><td>dimensionless</td><td>0.5265</td><td>0.0488</td><td>0.4474</td><td>0.7347</td></tr>
+</tbody>
+</table>
+
+<h2>Data Sources</h2>
+<ul>
+  <li><strong>Terrain</strong>: NASA SRTM 30m via Open-Meteo Elevation API. Elevation range: 190&ndash;305 m MSL. Bilinear interpolation to 222 m grid.</li>
+  <li><strong>Wind</strong>: GFS/HRES forecast via Open-Meteo Weather API. t=0 snapshot. 14 altitude bands. Mean speed: 6.2 m/s.</li>
+  <li><strong>Obstacles</strong>: OpenStreetMap Overpass API. 18,690 structures: buildings (42%), power pylons (47%), towers, chimneys, religious structures.</li>
+  <li><strong>Threat</strong>: Analytical Swerling Case I radar range equation. 3 SAM systems (S-300V, SA-11, SA-22). P_fa=10<sup>&minus;6</sup>.</li>
+  <li><strong>Fusion</strong>: Weighted sum with weights (terrain=0.15, wind=0.10, obstacle=0.20, threat=0.40, energy=0.15).</li>
+</ul>
+
+<h2>Radar Equation (Threat Layer)</h2>
+<p>
+Detection probability under Swerling Case I (many equal-amplitude scatterers, scan-to-scan fluctuation):<br>
+<code>P_d = P_fa ^ (1 / (1 + SNR))</code><br>
+<code>SNR(R) = SNR_max * (R_max / R)^4</code><br>
+where <code>SNR_max = log(P_fa) / log(0.9) - 1 &asymp; 13.15</code> sets P_d=0.9 at R_max.
+</p>
+
+<h2>References</h2>
+<ol>
+  <li>Rodriguez et al. (2006). A Global Assessment of the SRTM Performance. <em>PE&amp;RS</em> 72(3):249&ndash;260.</li>
+  <li>Skolnik, M.I. (2008). <em>Radar Handbook</em>, 3rd Ed. McGraw-Hill.</li>
+  <li>Swerling, P. (1960). Probability of Detection for Fluctuating Targets. <em>IRE Trans. IT</em> 6(2):269&ndash;308.</li>
+  <li>OpenStreetMap contributors (2024). ODbL.</li>
+  <li>Open-Meteo API (2024). https://open-meteo.com</li>
+</ol>
+</body>
+</html>

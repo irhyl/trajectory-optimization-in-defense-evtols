@@ -1,0 +1,207 @@
+{
+  "@context": "https://schema.org/",
+  "@type": "Dataset",
+  "name": "Defense eVTOL Perception Dataset \u2014 Delhi NCR Theatre",
+  "description": "Multi-layer perception dataset for defense eVTOL trajectory optimization. 1,057,714 rows covering terrain (SRTM), wind (GFS/HRES), obstacles (OSM), and SAM threat assessment (Swerling-I) over the Delhi NCR theatre.",
+  "url": "https://github.com/evtol-research/trajectory-optimization-in-defense-evtols",
+  "version": "2.0.0",
+  "datePublished": "2026-04-04T07:13:16.100771+00:00",
+  "creator": {
+    "@type": "Organization",
+    "name": "Defense eVTOL Research Team"
+  },
+  "spatialCoverage": {
+    "@type": "Place",
+    "name": "Delhi NCR outskirts, India",
+    "geo": {
+      "@type": "GeoShape",
+      "box": "28.4 76.9 28.9 77.5"
+    }
+  },
+  "temporalCoverage": "2026-04-04",
+  "variableMeasured": [
+    {
+      "@type": "PropertyValue",
+      "name": "lat",
+      "unitText": "degrees_north"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "lon",
+      "unitText": "degrees_east"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "alt_m",
+      "unitText": "m"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "elev_m",
+      "unitText": "m_MSL"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "slope_deg",
+      "unitText": "degrees"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "roughness_m",
+      "unitText": "m"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "terrain_clearance_m",
+      "unitText": "m"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_u_mps",
+      "unitText": "m/s"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_v_mps",
+      "unitText": "m/s"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_w_mps",
+      "unitText": "m/s"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_speed_mps",
+      "unitText": "m/s"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_dir_deg",
+      "unitText": "degrees"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "turbulence_intensity",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "nearest_obstacle_dist_m",
+      "unitText": "m"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "nearest_obstacle_height_m",
+      "unitText": "m"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "T1_detect_prob",
+      "unitText": "probability"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "T2_detect_prob",
+      "unitText": "probability"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "T3_detect_prob",
+      "unitText": "probability"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "max_threat_prob",
+      "unitText": "probability"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "combined_threat_prob",
+      "unitText": "probability"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "terrain_cost",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "wind_cost",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "obstacle_cost",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "threat_cost",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "energy_cost",
+      "unitText": "dimensionless"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "fused_cost",
+      "unitText": "dimensionless"
+    }
+  ],
+  "license": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "isBasedOn": [
+    {
+      "@type": "CreativeWork",
+      "name": "NASA SRTM",
+      "url": "https://www2.jpl.nasa.gov/srtm/"
+    },
+    {
+      "@type": "CreativeWork",
+      "name": "Open-Meteo API",
+      "url": "https://open-meteo.com"
+    },
+    {
+      "@type": "CreativeWork",
+      "name": "OpenStreetMap",
+      "url": "https://www.openstreetmap.org"
+    }
+  ],
+  "keywords": [
+    "eVTOL",
+    "UAM",
+    "trajectory optimization",
+    "threat assessment",
+    "terrain perception",
+    "wind forecasting",
+    "obstacle detection",
+    "SAM avoidance",
+    "defense aviation",
+    "Delhi NCR"
+  ],
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "text/csv",
+      "contentUrl": "perception_full_dataset.csv"
+    },
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "application/x-parquet",
+      "contentUrl": "exports/perception_full_dataset.parquet"
+    },
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "application/x-hdf",
+      "contentUrl": "exports/perception_full_dataset.h5"
+    }
+  ],
+  "measurementTechnique": [
+    "SRTM interferometric SAR (terrain elevation)",
+    "GFS/HRES numerical weather prediction (wind)",
+    "OpenStreetMap Overpass API (obstacle inventory)",
+    "Swerling Case I radar range equation (threat probability)"
+  ]
+}
