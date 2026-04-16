@@ -78,7 +78,7 @@ class SimulatorMode(Enum):
 
 
 @dataclass
-class VehicleState:
+class SITLState:
     """Complete vehicle state from simulator"""
     # Position (meters, ENU frame)
     position_north: float
@@ -174,7 +174,7 @@ class BasicVehicleSimulator:
         self.config = config
         
         # State
-        self.state = VehicleState(
+        self.state = SITLState(
             position_north=0.0,
             position_east=0.0,
             position_down=0.0,
@@ -254,10 +254,10 @@ class BasicVehicleSimulator:
             self.state.motor_thrusts = motor_thrusts
             self.state.timestamp = datetime.now()
     
-    def get_state(self) -> VehicleState:
+    def get_state(self) -> SITLState:
         """Get current vehicle state"""
         with self._lock:
-            return VehicleState(
+            return SITLState(
                 position_north=self.state.position_north,
                 position_east=self.state.position_east,
                 position_down=self.state.position_down,
@@ -305,7 +305,7 @@ class ArduPilotSITLBridge:
         self.last_heartbeat = None
         
         # State tracking
-        self.state = VehicleState(
+        self.state = SITLState(
             position_north=0.0, position_east=0.0, position_down=0.0,
             velocity_north=0.0, velocity_east=0.0, velocity_down=0.0,
             roll=0.0, pitch=0.0, yaw=0.0,
@@ -407,7 +407,7 @@ class ArduPilotSITLBridge:
                 logger.error(f"Failed to send PWM: {e}")
             return False
     
-    def receive_state(self) -> Optional[VehicleState]:
+    def receive_state(self) -> Optional[SITLState]:
         """
         Receive vehicle state from ArduPilot SITL via MAVLink.
         
@@ -418,7 +418,7 @@ class ArduPilotSITLBridge:
         - Angular rates
         
         Returns:
-            VehicleState if data received, None on timeout
+            SITLState if data received, None on timeout
         """
         if not self.is_connected or not self.socket:
             return None
@@ -447,7 +447,7 @@ class ArduPilotSITLBridge:
                 # Unpack angular rates
                 roll_rate, pitch_rate, yaw_rate = values[4:7]
                 
-                self.state = VehicleState(
+                self.state = SITLState(
                     position_north=pos_north,
                     position_east=pos_east,
                     position_down=pos_down,
@@ -560,7 +560,7 @@ class SITLSimulatorBridge:
         self._lock = threading.RLock()
         self._update_thread: Optional[threading.Thread] = None
     
-    def add_state_callback(self, callback: Callable[[VehicleState], None]):
+    def add_state_callback(self, callback: Callable[[SITLState], None]):
         """Register callback for vehicle state updates"""
         self.state_callbacks.append(callback)
     
@@ -684,7 +684,7 @@ class SITLSimulatorBridge:
                 logger.error(f"SITL update error: {e}")
                 time.sleep(dt)
     
-    def get_latest_state(self) -> Optional[VehicleState]:
+    def get_latest_state(self) -> Optional[SITLState]:
         """Get current vehicle state"""
         with self._lock:
             if self.ardupilot_bridge and self.ardupilot_bridge.is_connected:
