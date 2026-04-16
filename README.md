@@ -2,19 +2,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"/>
-  <img src="https://img.shields.io/badge/Regions-6%20Indian%20Theatres-FF6B35?style=for-the-badge" alt="6 Regions"/>
-  <img src="https://img.shields.io/badge/Records-22%2C000%20Missions-2ECC71?style=for-the-badge" alt="22K Records"/>
-  <img src="https://img.shields.io/badge/Formats-Parquet%20%7C%20CSV%20%7C%20H5%20%7C%20Feather%20%7C%20NPZ%20%7C%20PKL-1ABC9C?style=for-the-badge" alt="Formats"/>
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License MIT"/>
 </p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Perception-Real%20API%20Data-4A90D9?style=flat-square&logo=satellite&logoColor=white" alt="Perception"/>
-  <img src="https://img.shields.io/badge/Planning-RRT%2A%20%2B%20NSGA--III-9B59B6?style=flat-square" alt="Planning"/>
-  <img src="https://img.shields.io/badge/Control-50%20Hz%20Cascaded%20PID-E74C3C?style=flat-square" alt="Control"/>
-  <img src="https://img.shields.io/badge/Vehicle-6--DoF%20BEMT%20Dynamics-2980B9?style=flat-square" alt="Vehicle"/>
-</p>
-
 ---
 
 A full-stack autonomous mission planning and control framework for defense electric vertical take-off and landing (eVTOL) aircraft operating in contested airspace. The system integrates real geospatial perception, multi-objective trajectory optimization, cascaded flight control, and six-degree-of-freedom vehicle dynamics into a four-layer architecture generating publication-quality datasets across six Indian geographic theatres for NeurIPS Datasets & Benchmarks submission.
@@ -525,8 +514,6 @@ All results are simulation-based. No hardware-in-the-loop or physical flight tes
 
 <p align="center">
   <img src="https://img.shields.io/badge/Data%20Source-Open--Meteo%20%7C%20OSM%20%7C%20NASA%20SRTM-blue?style=flat-square" alt="Data Sources"/>
-  <img src="https://img.shields.io/badge/No%20Synthetic%20Data-Real%20API%20Sources%20Only-success?style=flat-square" alt="Real Data"/>
-  <img src="https://img.shields.io/badge/Reproducible-Full%20Pipeline%20Scripts-informational?style=flat-square" alt="Reproducible"/>
 </p>
 
 ---
