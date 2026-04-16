@@ -871,6 +871,18 @@ simulate_mission(row)
 
 A systematic line-by-line review of all vehicle submodule source files identified seven ghost-code instances — bare expressions whose computed values were discarded. All were fixed in-place.
 
+### 14.0 Canonical State Types (2026-04-15)
+
+The `VehicleState` class is now the **single canonical definition** across all layers:
+
+- **Defined in:** `src/evtol/vehicle/dynamics/state.py` (23-element NED state, Hamilton quaternion [w, x, y, z])
+- **Imported via:** `from evtol.core.state import VehicleState` (all other layers use this path)
+- **Previously broken:** `vehicle/__init__.py` imported `VehicleModel` from `vehicle/dynamics/` (wrong location), and `VehicleState, ControlInputs` from `vehicle/dynamics/` (ControlInputs is in `vehicle_model.py`). Fixed to import `TiltrotorVehicle` and `ControlInputs` from `vehicle/vehicle_model.py`.
+
+Two local `VehicleState` definitions that shadowed the canonical class have been renamed:
+- `control/sitl_simulator.py` → `SITLState` (hardware telemetry struct, ENU/Euler)
+- `control/advanced_modes/advanced_modes.py` → `ModeInputState` (minimal mode-selection inputs)
+
 ### 14.1 `aerodynamics/fuselage_model.py` (line 140)
 
 **Bug**: `self.config.cd_base` — attribute `cd_base` does not exist on `FuselageConfig`.
