@@ -4,9 +4,8 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"/>
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License MIT"/>
 </p>
----
 
-A full-stack autonomous mission planning and control framework for defense electric vertical take-off and landing (eVTOL) aircraft operating in contested airspace. The system integrates real geospatial perception, multi-objective trajectory optimization, cascaded flight control, and six-degree-of-freedom vehicle dynamics into a four-layer architecture generating publication-quality datasets across six Indian geographic theatres for NeurIPS Datasets & Benchmarks submission.
+A full-stack autonomous mission planning and control framework for defense electric vertical take-off and landing (eVTOL) aircraft operating in contested airspace. The system integrates real geospatial perception, multi-objective trajectory optimization, cascaded flight control, and six-degree-of-freedom vehicle dynamics into a four-layer architecture generating publication-quality datasets across six Indian geographic theatres.
 
 ---
 
