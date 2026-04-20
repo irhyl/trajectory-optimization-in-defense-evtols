@@ -248,7 +248,7 @@ trajectory-optimization-in-defense-evtols/
 **Requirements:** Python 3.11+
 
 ```bash
-git clone https://github.com/your-org/trajectory-optimization-in-defense-evtols
+git clone https://github.com/irhyl/trajectory-optimization-in-defense-evtols
 cd trajectory-optimization-in-defense-evtols
 
 python -m venv .venv
