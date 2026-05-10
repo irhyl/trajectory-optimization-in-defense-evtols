@@ -877,16 +877,15 @@ class WindDataProvider:
         Raises:
             RuntimeError: If no data source is available
         """
-        # Try primary provider
-        if self.primary_provider.is_available():
-            try:
-                return self.primary_provider.fetch_forecast(
-                    bounds, altitude_bands, forecast_hours
-                )
-            except (requests.RequestException, RuntimeError, ValueError) as exc:
-                logger.warning("Primary provider failed: %s", exc)
+        # Try primary provider directly — skip the is_available() ping which
+        # uses lat=0,lon=0 and can spuriously fail on slow networks.
+        try:
+            return self.primary_provider.fetch_forecast(
+                bounds, altitude_bands, forecast_hours
+            )
+        except (requests.RequestException, RuntimeError, ValueError) as exc:
+            logger.warning("Primary provider failed: %s", exc)
 
-        # No fallback available
         raise RuntimeError(
             "No wind data source available. Check network connectivity."
         )
