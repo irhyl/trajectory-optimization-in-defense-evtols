@@ -196,7 +196,7 @@ region-specific and fixed for reproducibility.
 \begin{figure}[t]
   \vskip 0.2in
   \begin{center}
-    \includegraphics[width=\columnwidth]{../../visuals/perception/A6_fused_cost_map.png}
+    \includegraphics[width=\columnwidth]{figures/perception_A6_fused_cost_map.png}
     \caption{Delhi fused perception cost field: SAM threat probability
       contours overlaid on terrain, wind, and obstacle cost components.
       The 0.35 risk threshold separates high- and low-risk zones.}
@@ -204,6 +204,33 @@ region-specific and fixed for reproducibility.
   \end{center}
   \vskip -0.2in
 \end{figure}
+
+\begin{figure*}[t]
+  \vskip 0.2in
+  \begin{center}
+    \begin{subfigure}[b]{0.32\textwidth}
+      \includegraphics[width=\textwidth]{figures/perception_A1_terrain_elevation.png}
+      \caption{Terrain elevation (SRTM)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+      \includegraphics[width=\textwidth]{figures/perception_A3_wind_quiver.png}
+      \caption{ERA5 wind field}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+      \includegraphics[width=\textwidth]{figures/perception_A5_threat_pd_contours.png}
+      \caption{SAM $P_d$ contours}
+    \end{subfigure}
+    \caption{The three primary perception cost components for Delhi.
+      Terrain cost (left) penalises high-elevation corridors.
+      Wind cost (centre) uses ERA5 reanalysis magnitude at cruise altitude.
+      SAM threat $P_d$ contours (right) follow the Radar Range Equation
+      (Eq.~\ref{eq:pd}) and dominate the fused cost map at close range.}
+    \label{fig:perception_layers}
+  \end{center}
+  \vskip -0.2in
+\end{figure*}
 
 \textbf{Layer 1 --- Perception.}
 For each region, a 4D cost field is constructed over the region bounding box
@@ -231,6 +258,21 @@ NSGA-III ($N_{\text{pop}}=50$, 100 generations) extracts Pareto-optimal
 trajectories balancing $J_1$ (energy, Wh), $J_2$ (mission time, s), and
 $J_3$ (max threat $\in [0,1]$).
 A trajectory is labeled \texttt{risk\_label}$=1$ if $J_3 > 0.35$.
+Figure~\ref{fig:trajectories} shows RRT* trajectory distributions for Delhi.
+
+\begin{figure}[t]
+  \vskip 0.1in
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/planning_A2_trajectory_vectors.png}
+    \caption{RRT* trajectory samples for Delhi coloured by risk label.
+      High-risk trajectories (red) pass through the central SAM engagement
+      zone; low-risk (blue) skirt the perimeter. The spatial structure of
+      labels directly reflects SAM placement geometry, explaining why mission
+      geometry features are highly predictive for T1.}
+    \label{fig:trajectories}
+  \end{center}
+  \vskip -0.2in
+\end{figure}
 
 \textbf{Layer 3 --- Vehicle Dynamics.}
 A 200\,kg-class quad-tiltrotor is simulated with: BEMT rotor aerodynamics
@@ -560,7 +602,8 @@ not attributable to any single feature.
 
 \subsection{Cross-Layer Feature Correlations}
 
-Strong causal correlations span the four simulation layers.
+Strong causal correlations span the four simulation layers
+(Figure~\ref{fig:correlations}).
 \texttt{path\_length} and vehicle-layer \texttt{energy\_consumed\_wh}
 correlate at $r = 0.92$ ($p < 10^{-6}$), confirming that energy is
 well-determined by mission geometry.
@@ -568,13 +611,41 @@ The planning-layer \texttt{energy\_cost\_wh} and vehicle-layer
 \texttt{energy\_consumed\_wh} correlate at $r = 0.89$, indicating that
 the planning model's energy estimate is accurate but not perfect.
 
-Control tracking quality degrades for high-risk missions:
+Control tracking quality degrades for high-risk missions
+(Figure~\ref{fig:ctrl_by_risk}):
 average position ITAE is $2.3\times$ higher for risk-positive records,
 reflecting evasive maneuvers that increase acceleration demand beyond the
 PID bandwidth.
 This cross-layer correlation makes T4 prediction from scalar planning
 features plausible in principle but hard in practice because the full
 PID time series carries information not captured in scalar summaries.
+
+\begin{figure}[t]
+  \vskip 0.1in
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/planning_H1_correlation_matrix.png}
+    \caption{Cross-layer Pearson correlation matrix for planning-layer
+      features (Delhi, $n = 10{,}000$). The strong correlation of
+      \texttt{path\_length} with \texttt{energy\_cost\_wh} ($r = 0.92$)
+      and \texttt{mission\_time\_s} ($r = 0.88$) reveals the dominant
+      role of trajectory geometry across layers.}
+    \label{fig:correlations}
+  \end{center}
+  \vskip -0.2in
+\end{figure}
+
+\begin{figure}[t]
+  \vskip 0.1in
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/control_E01_performance_by_risk.png}
+    \caption{Control tracking performance stratified by risk label.
+      Risk-positive missions (evasive trajectories) exhibit significantly
+      higher position RMSE and ITAE, confirming that T4 prediction
+      requires risk-aware conditioning.}
+    \label{fig:ctrl_by_risk}
+  \end{center}
+  \vskip -0.2in
+\end{figure}
 
 \subsection{Distribution Shift Across Terrain Regimes}
 
@@ -739,18 +810,63 @@ The 15 T1 features plus \texttt{soc\_initial}, \texttt{hover\_fraction},
 
 \section{Additional Figures}
 
+\subsection*{Perception Layer}
+
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.7\textwidth]{../../visuals/planning/K1_pareto_front.png}
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{figures/perception_F1_sam_range_rings.png}
+    \caption{SAM engagement range rings}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{figures/perception_F2_pd_range_curve.png}
+    \caption{$P_d$ vs.\ slant range}
+  \end{subfigure}
+  \caption{SAM threat model geometry. Left: concentric engagement range rings
+    overlaid on the bounding box. Right: $P_d(r)$ curve (Eq.~\ref{eq:pd})
+    showing the exponential decay from unity at close range to near-zero
+    beyond $r_\text{eff}$. The sharp decay explains the binary structure of
+    the risk label for moderate-range SAM systems.}
+  \label{fig:sam_model}
+\end{figure}
+
+\subsection*{Planning Layer}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/planning_K1_pareto_front.png}
   \caption{NSGA-III Pareto front: energy vs.\ mission time vs.\ maximum
     threat cost for Delhi. The 3D front illustrates the non-dominated
-    solution structure that makes T6 (Pareto ranking) a non-trivial task.}
+    solution structure that makes OC-3 (Pareto ranking) a non-trivial task.}
   \label{fig:pareto}
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.7\textwidth]{../../visuals/vehicle/D01_energy_battery.png}
+  \includegraphics[width=0.72\textwidth]{figures/planning_E1_threat_distributions.png}
+  \caption{Distribution of \texttt{max\_combined\_threat} per region.
+    The bimodal structure in balanced regions (Delhi, Mumbai, Bangalore)
+    motivates the 0.35 threshold; near-degenerate regions (Arunachal, Ladakh)
+    produce strongly left-skewed distributions.}
+  \label{fig:threat_dist}
+\end{figure}
+
+\subsection*{Vehicle Layer}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/vehicle_B01_rotor_bemt_performance.png}
+  \caption{BEMT rotor performance curves for the 200\,kg-class quad-tiltrotor.
+    Figure of merit FM $= C_T^{3/2}/(\sqrt{2}C_P)$ as a function of collective
+    pitch angle, used to derive hover efficiency for each mission's
+    altitude-adjusted air density.}
+  \label{fig:bemt}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/vehicle_D01_energy_battery.png}
   \caption{Vehicle-layer energy consumption and battery SOC distributions
     (Delhi, $n = 10{,}000$). Log-normal energy distribution motivates
     the log-transform applied to the T2 target.}
@@ -759,11 +875,55 @@ The 15 T1 features plus \texttt{soc\_initial}, \texttt{hover\_fraction},
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.7\textwidth]{../../visuals/control/A01_tracking_performance_distributions.png}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_F01_acoustic_signatures.png}
+    \caption{Acoustic (FW-H)}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_G01_infrared_signatures.png}
+    \caption{IR (MWIR/LWIR)}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_H01_rcs_signatures.png}
+    \caption{RCS (X/Ku-band)}
+  \end{subfigure}
+  \caption{Multi-domain vehicle signature distributions across 10{,}000 Delhi
+    missions. Acoustic signatures (left) show log-normal SPL distributions;
+    IR signatures (centre) track motor and battery heat; RCS (right) varies
+    with aspect angle and rotor position. Together these features underpin OC-3.}
+  \label{fig:signatures}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/vehicle_K01_multi_signature_pareto_3d.png}
+  \caption{3D Pareto front for multi-signature stealth: acoustic SPL,
+    IR irradiance, and RCS trade-offs. Low-signature trajectories
+    (dominant solutions) tend to cruise at higher altitude and slower speed.}
+  \label{fig:sig_pareto}
+\end{figure}
+
+\subsection*{Control Layer}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/control_A01_tracking_performance_distributions.png}
   \caption{Control-layer altitude tracking error distributions across mission
     phases. The bimodal structure (low error in cruise, elevated in
     hover--cruise transition) motivates phase-aware T4 models.}
   \label{fig:control}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/control_Z01_control_kpi_summary.png}
+  \caption{Control KPI summary dashboard across all six original regions.
+    Position RMSE, altitude RMSE, and ITAE scores are shown; mountain regions
+    (Ladakh, Arunachal) exhibit higher variance due to wind disturbance
+    at high altitude.}
+  \label{fig:control_kpi}
 \end{figure}
 
 \end{document}
