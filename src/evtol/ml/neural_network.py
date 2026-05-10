@@ -91,15 +91,17 @@ def _bce_loss(prob: np.ndarray, target: np.ndarray,
               eps: float = 1e-7) -> Tuple[float, np.ndarray]:
     """
     Weighted binary cross-entropy.
-    pos_weight > 1 up-weights the minority positive class; set to n_neg/n_pos.
-    Gradient w.r.t. pre-sigmoid logit = pos_weight*(p-1)*y + p*(1-y).
+    L = -[w·y·log(p) + (1-y)·log(1-p)]
+
+    Gradient w.r.t. pre-sigmoid logit (dL/d_logit = dL/dp · p·(1-p)):
+        dL/dp     = -w·y/p + (1-y)/(1-p)
+        dL/d_logit = -w·y·(1-p) + (1-y)·p
+
+    Reduces to standard (p - y) when pos_weight = 1.
     """
     p = np.clip(prob, eps, 1.0 - eps)
     loss = -(pos_weight * target * np.log(p) + (1.0 - target) * np.log(1.0 - p))
-    # dL/d_logit via chain rule through sigmoid: s*(1-s) cancels neatly
-    grad_logit = pos_weight * p * (1.0 - target) - pos_weight * (1.0 - p) * target
-    # simplifies when pos_weight=1 to the standard (p - y)
-    grad_logit = p - target + (pos_weight - 1.0) * (1.0 - p) * target
+    grad_logit = -pos_weight * target * (1.0 - p) + (1.0 - target) * p
     return loss.mean(), grad_logit / len(target)
 
 
@@ -122,14 +124,17 @@ def compute_pos_weight(y: np.ndarray, min_positives: int = 10,
     return min(float(n_neg) / float(n_pos), max_weight)
 
 
-def logit_transform(y: np.ndarray, eps: float = 1e-4) -> np.ndarray:
+def logit_transform(y: np.ndarray, eps: float = 1e-3,
+                    clip_logit: float = 6.0) -> np.ndarray:
     """
-    Apply logit = log(p/(1-p)) to a [0,1] bounded target.
-    Spreads saturated distributions (e.g. max_combined_threat clustered near 1.0).
-    Clips y to [eps, 1-eps] to avoid ±inf.
+    Apply logit = log(p/(1-p)) to a [0,1] bounded target, then clip to
+    [-clip_logit, clip_logit] to prevent exploding gradients from values
+    near 0 or 1 (e.g. max_combined_threat saturated near 1.0 → logit → +inf).
+    eps clips input before logit; clip_logit clips the output.
     """
     y_clip = np.clip(y, eps, 1.0 - eps)
-    return np.log(y_clip / (1.0 - y_clip))
+    logit = np.log(y_clip / (1.0 - y_clip))
+    return np.clip(logit, -clip_logit, clip_logit)
 
 
 def logit_inverse(z: np.ndarray) -> np.ndarray:
@@ -418,15 +423,17 @@ class MultiTaskNN:
     # ------------------------------------------------------------------
 
     def adam_step(self, lr: float = 1e-3, beta1: float = 0.9,
-                  beta2: float = 0.999, eps: float = 1e-8) -> None:
+                  beta2: float = 0.999, eps: float = 1e-8,
+                  grad_clip: float = 5.0) -> None:
         self._adam_t += 1
         t = self._adam_t
         bc1 = 1.0 - beta1 ** t
         bc2 = 1.0 - beta2 ** t
 
         for i, (p, g) in enumerate(self._all_param_pairs()):
-            self._adam_m[i] = beta1 * self._adam_m[i] + (1.0 - beta1) * g
-            self._adam_v[i] = beta2 * self._adam_v[i] + (1.0 - beta2) * g ** 2
+            g_clipped = np.clip(g, -grad_clip, grad_clip)
+            self._adam_m[i] = beta1 * self._adam_m[i] + (1.0 - beta1) * g_clipped
+            self._adam_v[i] = beta2 * self._adam_v[i] + (1.0 - beta2) * g_clipped ** 2
             m_hat = self._adam_m[i] / bc1
             v_hat = self._adam_v[i] / bc2
             p -= lr * m_hat / (np.sqrt(v_hat) + eps)
