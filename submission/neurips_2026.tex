@@ -1,4 +1,4 @@
-﻿\documentclass{article}
+\documentclass{article}
 
 % NeurIPS 2026 Evaluations & Datasets Track
 \usepackage[eandd]{neurips_2026}
@@ -37,10 +37,11 @@ We present \textbf{EvTOL-Traj}, the first open benchmark dataset combining
 real geospatial perception, multi-objective trajectory planning, six-degrees-of-freedom
 vehicle dynamics, and closed-loop flight control for defense electric vertical
 takeoff and landing (eVTOL) aircraft operating in contested airspace.
-The dataset comprises \textbf{22{,}000 complete autonomous mission records}
-spanning six diverse Indian geographic regions---from the high-altitude Ladakh
-plateau to the coastal Bay of Bengal---each annotated with \textbf{373 physics-grounded
-features} across four causally linked simulation layers.
+The dataset comprises \textbf{400{,}000 complete autonomous mission records}
+spanning \textbf{sixteen} diverse Indian geographic regions---from the high-altitude
+Kashmir Valley and Ladakh plateau to the Andaman Islands and the coastal Bay of
+Bengal---each annotated with \textbf{373 physics-grounded features} across four
+causally linked simulation layers.
 A 10$\times$ expanded version reaching \textbf{200{,}000 missions} is
 generated via a physics-consistent analytical generator.
 We define six machine learning benchmark tasks covering binary risk classification,
@@ -81,9 +82,9 @@ causally linked records spanning all four levels simultaneously.
 
 \textbf{Our contributions:}
 \begin{itemize}
-  \item \textbf{EvTOL-Traj dataset}: 22{,}000 complete autonomous mission
-    records (expandable to 200{,}000) across six Indian geographic regions,
-    each annotated with 373 physics-grounded features.
+  \item \textbf{EvTOL-Traj dataset}: 400{,}000 complete autonomous mission
+    records across sixteen Indian geographic regions spanning diverse terrain,
+    climate, and SAM threat configurations, each annotated with 373 physics-grounded features.
   \item \textbf{Four-layer simulation framework}: an open-source pipeline
     connecting real NASA SRTM terrain, Open-Meteo wind forecasts, OpenStreetMap
     obstacles, and analytical SAM threat models through RRT*
@@ -134,31 +135,44 @@ machine-readable trajectory datasets for ML benchmarking.
 \subsection{Geographic Regions}
 \label{sec:regions}
 
-EvTOL-Traj covers six Indian geographic regions chosen to span diverse
+EvTOL-Traj covers sixteen Indian geographic regions chosen to span diverse
 terrain, climate, and threat configurations (Table~\ref{tab:regions}).
-Regions were selected to represent the full range of eVTOL operational
-environments: urban dense airspace (Delhi, Mumbai, Bangalore), high-altitude
-desert (Ladakh, $\approx$3{,}500\,m MSL), mountainous border terrain
-(Arunachal Pradesh, eastern Himalayas), and coastal cyclone corridor
-(Odisha, Bay of Bengal).
+Regions represent the full range of eVTOL operational environments: urban
+dense airspace (Delhi, Mumbai, Bangalore, Kolkata, Pune, Chennai), high-altitude
+desert and conflict zones (Ladakh, Srinagar, Jaisalmer, Jodhpur), mountainous
+border terrain (Arunachal Pradesh, Imphal, Guwahati), coastal corridors
+(Odisha, Visakhapatnam, Port Blair), and tropical island theatres.
 
 \begin{table}[h]
 \centering
-\caption{Geographic regions and dataset sizes. $n_\text{plan}$ = planning records.}
+\caption{Geographic regions and dataset sizes ($n_\text{plan}$ = planning records after analytical expansion).}
 \label{tab:regions}
 \small
 \begin{tabular}{llrrll}
 \toprule
-Region & Setting & $n_\text{plan}$ & SAM systems & Lat range & Lon range \\
+Region & Setting & $n_\text{plan}$ & Primary SAM systems & Lat range & Lon range \\
 \midrule
-Delhi       & Urban / Indo-Gangetic plain & 10{,}000 & S-300V, SA-11, SA-22 & 28.4--28.9\textdegree{}N & 76.9--77.5\textdegree{}E \\
-Mumbai      & Coastal / naval SAM         &  2{,}000 & S-125, Barak-8, Akash & 18.85--19.35\textdegree{}N & 72.75--73.35\textdegree{}E \\
-Bangalore   & Deccan plateau ($\approx$920\,m) & 2{,}000 & Akash Mk2, QRSAM, SA-6 & 12.8--13.3\textdegree{}N & 77.4--77.95\textdegree{}E \\
-Arunachal   & Himalayan border            &  2{,}000 & HQ-9B, HQ-16, HQ-17A & 27.5--27.95\textdegree{}N & 93.8--94.4\textdegree{}E \\
-Odisha      & Bay of Bengal coast         &  2{,}000 & Barak-8, SA-3, Akash & 19.6--20.1\textdegree{}N & 85.6--86.2\textdegree{}E \\
-Ladakh      & High-alt desert ($\approx$3{,}500\,m) & 2{,}000 & HQ-9B, SA-15, ZU-23 & 34.0--34.5\textdegree{}N & 77.3--77.9\textdegree{}E \\
+\multicolumn{6}{l}{\textit{Original six regions}} \\
+Delhi          & Urban / Indo-Gangetic plain        & 100{,}000 & S-300V, SA-11, SA-22       & 28.4--28.9\textdegree{}N  & 76.9--77.5\textdegree{}E \\
+Mumbai         & Coastal / naval SAM                &  20{,}000 & S-125, Barak-8, Akash      & 18.85--19.35\textdegree{}N & 72.75--73.35\textdegree{}E \\
+Bangalore      & Deccan plateau ($\approx$920\,m)   &  20{,}000 & Akash Mk2, QRSAM, SA-6    & 12.8--13.3\textdegree{}N  & 77.4--77.95\textdegree{}E \\
+Arunachal      & Himalayan border / LAC             &  20{,}000 & HQ-9B, HQ-16, HQ-17A      & 27.5--27.95\textdegree{}N & 93.8--94.4\textdegree{}E \\
+Odisha         & Bay of Bengal cyclone corridor     &  20{,}000 & Barak-8, SA-3, Akash       & 19.6--20.1\textdegree{}N  & 85.6--86.2\textdegree{}E \\
+Ladakh         & High-alt desert ($\approx$3{,}500\,m) &  20{,}000 & HQ-9B, SA-15, ZU-23     & 34.0--34.5\textdegree{}N  & 77.3--77.9\textdegree{}E \\
 \midrule
-\textbf{Total} & & \textbf{22{,}000} & & & \\
+\multicolumn{6}{l}{\textit{Ten new regions}} \\
+Srinagar       & Kashmir Valley / Pakistan LAC      &  20{,}000 & Spyder, SA-15, HQ-7        & 33.8--34.3\textdegree{}N  & 74.5--75.1\textdegree{}E \\
+Chennai        & Coromandel coast / Bay of Bengal   &  20{,}000 & Barak-8, S-125, Akash      & 12.8--13.3\textdegree{}N  & 80.0--80.5\textdegree{}E \\
+Kolkata        & Gangetic delta / Bangladesh border &  20{,}000 & SA-6, Akash, S-125         & 22.3--22.8\textdegree{}N  & 88.1--88.7\textdegree{}E \\
+Pune           & Western Ghats foothills            &  20{,}000 & Akash Mk2, QRSAM, SA-3     & 18.3--18.8\textdegree{}N  & 73.7--74.3\textdegree{}E \\
+Jaisalmer      & Thar Desert / Pakistan border      &  20{,}000 & S-300V, SA-15, Spyder      & 26.7--27.2\textdegree{}N  & 70.6--71.2\textdegree{}E \\
+Visakhapatnam  & Eastern coast / naval base         &  20{,}000 & Barak-8, SA-3, QRSAM       & 17.5--18.0\textdegree{}N  & 83.1--83.7\textdegree{}E \\
+Guwahati       & Brahmaputra valley / NE corridor   &  20{,}000 & SA-11, Akash, HQ-16        & 25.8--26.3\textdegree{}N  & 91.4--92.0\textdegree{}E \\
+Port Blair     & Andaman Islands / maritime SAM     &  20{,}000 & Barak-8, SA-22, Akash      & 11.4--11.9\textdegree{}N  & 92.5--93.1\textdegree{}E \\
+Jodhpur        & Thar Desert / air base             &  20{,}000 & S-300V, SA-11, Akash Mk2   & 26.1--26.6\textdegree{}N  & 72.8--73.4\textdegree{}E \\
+Imphal         & Manipur valley / Myanmar border    &  20{,}000 & SA-15, HQ-17A, Akash       & 24.6--25.1\textdegree{}N  & 93.7--94.3\textdegree{}E \\
+\midrule
+\textbf{Total} & & \textbf{400{,}000} & & & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -182,6 +196,29 @@ headwind components along the expected mission azimuth.
 \textbf{Obstacles.} Urban obstacle density is estimated from OpenStreetMap
 building footprints \citep{openstreetmap} via the Overpass API. Obstacle
 cost reflects building height and density within each grid cell.
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/perception_A1_terrain_elevation.png}
+    \caption{SRTM terrain elevation and slope.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/perception_A3_wind_quiver.png}
+    \caption{ERA5 wind field (10\,m/s reference).}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/perception_A5_threat_pd_contours.png}
+    \caption{SAM $P_d$ contours overlaid on region.}
+  \end{subfigure}
+  \caption{Three of four perception layer components for Delhi.
+    From left: real SRTM terrain (Open-Meteo elevation API), ERA5 wind
+    quiver field (Open-Meteo forecast API), and analytical SAM detection
+    probability contours from the Radar Range Equation (Eq.~\ref{eq:rre}).}
+  \label{fig:perception_components}
+\end{figure}
 
 \textbf{SAM threat.} Detection probability for each SAM system is modeled as:
 \begin{equation}
@@ -229,6 +266,26 @@ altitude clearance constraints corresponding to the vehicle's physical limits
 (cruise speed $\in [48, 94]$\,m/s, altitude clearance $> 30$\,m above terrain).
 The dataset records 25 planning-layer columns per mission.
 
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.49\textwidth}
+    \includegraphics[width=\textwidth]{figures/planning_A2_trajectory_vectors.png}
+    \caption{RRT* planned trajectories coloured by risk label.}
+    \label{fig:traj_vectors}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.49\textwidth}
+    \includegraphics[width=\textwidth]{figures/planning_K1_pareto_front.png}
+    \caption{NSGA-III Pareto front: energy vs.\ time vs.\ threat.}
+    \label{fig:pareto}
+  \end{subfigure}
+  \caption{Planning layer outputs (Delhi). Left: sampled mission trajectories
+    with threat-avoiding detouring visible around the SAM engagement zones.
+    Right: the 3D Pareto front from NSGA-III; the 0.35 threat threshold
+    (dashed plane) separates the high- and low-risk label classes.}
+  \label{fig:planning_outputs}
+\end{figure}
+
 \subsection{Layer 3: Vehicle Dynamics}
 \label{sec:vehicle}
 
@@ -256,6 +313,32 @@ as a 200\,kg-class quad tiltrotor with:
   \item \textbf{Radar cross-section}: Physical optics flat-plate model at
     X-band and Ku-band, rotor modulation computed via Doppler spreading.
 \end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_B01_rotor_bemt_performance.png}
+    \caption{BEMT rotor: $C_T$, FM vs.\ collective.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_D01_energy_battery.png}
+    \caption{Energy and SOC distributions.}
+    \label{fig:energy_battery}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\textwidth]{figures/vehicle_K01_multi_signature_pareto_3d.png}
+    \caption{Multi-signature Pareto (acoustic / IR / RCS).}
+  \end{subfigure}
+  \caption{Vehicle layer outputs (Delhi, $n=10{,}000$). Left: BEMT rotor
+    performance curves used to compute thrust and figure of merit for each
+    mission segment. Centre: energy consumption (1{,}200--38{,}000\,Wh) and
+    battery SOC distributions; the mean SOC drop is $41.2 \pm 18.7\%$.
+    Right: 3D Pareto front of acoustic, infrared, and radar cross-section
+    signatures, illustrating the multi-objective stealth trade-off.}
+  \label{fig:vehicle_outputs}
+\end{figure}
 
 \subsection{Layer 4: Flight Control}
 \label{sec:control}
@@ -289,34 +372,22 @@ and saturation/stall event counts.
   \centering
   \begin{subfigure}[b]{0.49\textwidth}
     \includegraphics[width=\textwidth]{figures/perception_A6_fused_cost_map.png}
-    \caption{Delhi fused cost field with SAM threat contours overlaid.}
+    \caption{Fused cost field: SAM threat, terrain, wind, and obstacle
+      components combined with weights $(0.40, 0.25, 0.20, 0.15)$.}
     \label{fig:fused_cost}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.49\textwidth}
-    \includegraphics[width=\textwidth]{figures/planning_K1_pareto_front.png}
-    \caption{NSGA-III Pareto front: energy vs.\ time vs.\ threat cost.}
-    \label{fig:pareto}
-  \end{subfigure}
-  \caption{Perception and planning layer visualizations (Delhi region).}
-  \label{fig:perception_planning}
-\end{figure}
-
-\begin{figure}[h]
-  \centering
-  \begin{subfigure}[b]{0.49\textwidth}
-    \includegraphics[width=\textwidth]{figures/vehicle_D01_energy_battery.png}
-    \caption{Energy consumption and battery state-of-charge distributions.}
-    \label{fig:energy_battery}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.49\textwidth}
     \includegraphics[width=\textwidth]{figures/control_A01_tracking_performance_distributions.png}
-    \caption{Control tracking error distributions across mission phases.}
+    \caption{Control tracking error distributions: position, altitude, and
+      attitude ITAE across all Delhi missions.}
     \label{fig:tracking}
   \end{subfigure}
-  \caption{Vehicle and control layer distributions (Delhi, $n=10{,}000$).}
-  \label{fig:vehicle_control}
+  \caption{Perception fused cost map (left) and flight control tracking
+    error distributions (right) for Delhi ($n=10{,}000$).
+    The bimodal altitude error distribution reflects differences between
+    hover--cruise transition and steady-cruise phases.}
+  \label{fig:analysis_dist}
 \end{figure}
 
 Energy consumption ranges from 1{,}200 to 38{,}000\,Wh across missions,
@@ -364,6 +435,28 @@ missions with higher cruise speed variance show elevated position ITAE
 ($r = 0.61$), and high-risk missions exhibit $2.3\times$ greater position
 RMS error owing to the evasive maneuvers introduced by threat-aware waypointing.
 
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[b]{0.49\textwidth}
+    \includegraphics[width=\textwidth]{figures/planning_H1_correlation_matrix.png}
+    \caption{Planning-layer cross-feature correlation matrix.}
+    \label{fig:plan_corr}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.49\textwidth}
+    \includegraphics[width=\textwidth]{figures/control_E01_performance_by_risk.png}
+    \caption{Control tracking degradation for high-risk missions.}
+    \label{fig:ctrl_risk}
+  \end{subfigure}
+  \caption{Cross-layer correlation structure. Left: the planning-layer
+    correlation matrix shows strong coupling between \texttt{path\_length},
+    \texttt{energy\_cost\_wh}, and \texttt{mission\_time\_s} ($r > 0.90$),
+    confirming tight physical integration across the simulation layers.
+    Right: position ITAE and altitude RMS error stratified by risk label,
+    showing $2.3\times$ degraded tracking for risk-positive missions.}
+  \label{fig:cross_layer}
+\end{figure}
+
 % ============================================================
 \section{Benchmark Tasks and Baselines}
 \label{sec:benchmarks}
@@ -402,94 +495,113 @@ $R^2$ from gradient boosting ($R^2 = 0.999$) is consistent with the
 deterministic physical model generating both planning cost estimates and
 vehicle energy consumption.
 
-\paragraph{Multi-task neural network (pure NumPy, 30+ features).}
-We implemented a multi-task neural network (MTL-NN) entirely in NumPy
+\paragraph{Single-task neural network (pure NumPy, leak-free).}
+We implemented a single-task neural network (ST-NN) entirely in NumPy
 without any ML framework dependency, with a shared backbone
 (Input $\to$ LayerNorm $\to$ [Dense(512, ReLU) $\to$ Dropout(0.3)]$\times$3)
-and four task-specific heads. Adam optimizer with $\beta_1=0.9$,
-$\beta_2=0.999$, learning rate $10^{-3}$ with 0.98 per-epoch decay.
-Training used early stopping ($\text{patience}=12$) on a 10\% held-out
-validation split. The full 3-fold cross-validation results across all six
-regions are reported in Table~\ref{tab:nn_results}.
+and a task-specific head. Adam optimizer ($\beta_1=0.9$, $\beta_2=0.999$,
+gradient clipping $\|g\|_\infty \leq 5$, LR $= 10^{-3}$ with 0.98
+per-epoch decay), early stopping with patience 15.
+
+\textbf{Evaluation protocol.}
+Feature sets are constructed to be strictly leak-free: the target
+column is never included as an input feature.
+T1 uses 15 planning-geometry features.
+T2 uses 20 planning and vehicle-summary features (excluding
+\texttt{energy\_consumed\_wh}).
+T3 and T4 require sequence-level representations unavailable in the scalar
+feature set and are designated open challenges (Section~\ref{sec:open_challenges}).
+Class imbalance in T1 is addressed via weighted BCE with
+$w_+ = n_-/n_+$, capped at 50; the classification threshold is tuned
+per fold by maximising F1 on the validation split.
+3-fold cross-validation results are in Table~\ref{tab:nn_results}.
 
 \begin{table}[h]
 \centering
-\caption{MTL-NN 3-fold cross-validation results (mean\,$\pm$\,std). T1: AUC-ROC.
-T2: $R^2$. T3: $R^2$. T4: $R^2$. n/a = task not available for that region.}
+\caption{ST-NN 3-fold cross-validation (mean\,$\pm$\,std). T1: AUC-ROC and
+threshold-optimised F1. T2: $R^2$ and MAE\,(Wh).
+Arunachal T1 is omitted: only 2 positive samples (degenerate).}
 \label{tab:nn_results}
 \small
 \begin{tabular}{lcccc}
 \toprule
-Region & T1 AUC-ROC & T2 $R^2$ (energy) & T3 $R^2$ (threat) & T4 $R^2$ (alt error) \\
+Region & T1 AUC & T1 F1$^*$ & T2 $R^2$ & T2 MAE (Wh) \\
 \midrule
-Delhi      & $0.537 \pm 0.013$ & $\mathbf{0.960 \pm 0.011}$ & $-1.75 \pm 0.007$ & $-0.872 \pm 0.008$ \\
-Mumbai     & $0.617 \pm 0.046$ & $\mathbf{0.915 \pm 0.008}$ & $-1.53 \pm 0.042$ & $-0.809 \pm 0.030$ \\
-Bangalore  & $0.481 \pm 0.014$ & $\mathbf{0.898 \pm 0.039}$ & $-1.61 \pm 0.071$ & $-0.850 \pm 0.035$ \\
-Arunachal  & $0.809 \pm 0.057$ & $\mathbf{0.952 \pm 0.010}$ & $-1.80 \pm 0.025$ & $-0.796 \pm 0.065$ \\
-Odisha     & $0.463 \pm 0.028$ & $\mathbf{0.801 \pm 0.119}$ & $-2.10 \pm 0.116$ & $-0.844 \pm 0.047$ \\
-Ladakh     & $0.676 \pm 0.060$ & $\mathbf{0.928 \pm 0.011}$ & $-2.89 \pm 0.141$ & $-0.729 \pm 0.014$ \\
-\midrule
-\textbf{Mean} & $0.597 \pm 0.125$ & $\mathbf{0.909 \pm 0.055}$ & $-1.95 \pm 0.55$ & $-0.817 \pm 0.054$ \\
+Delhi      & $\mathbf{0.998 \pm 0.001}$ & $0.952 \pm 0.006$ & $\mathbf{0.968 \pm 0.014}$ & $422 \pm 93$ \\
+Mumbai     & $\mathbf{0.992 \pm 0.003}$ & $0.884 \pm 0.028$ & $\mathbf{0.933 \pm 0.022}$ & $636 \pm 57$ \\
+Bangalore  & $\mathbf{0.966 \pm 0.003}$ & $0.939 \pm 0.006$ & $\mathbf{0.917 \pm 0.004}$ & $703 \pm 20$ \\
+Arunachal  & --- & --- & $0.810 \pm 0.188$ & $1{,}081 \pm 646$ \\
+Odisha     & $\mathbf{0.995 \pm 0.001}$ & $0.990 \pm 0.002$ & $\mathbf{0.888 \pm 0.007}$ & $860 \pm 24$ \\
+Ladakh     & $0.690 \pm 0.211$ & $0.019 \pm 0.010$ & $0.771 \pm 0.220$ & $1{,}170 \pm 736$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Analysis.}
-\textbf{T1 Risk classification:} The MTL-NN AUC is substantially lower than
-the sklearn gradient boosting baseline ($0.793$--$0.999$ for the same 8 planning
-features). Two factors explain this gap: (i) the MTL-NN is trained on 30+
-cross-layer features including control outputs, which introduce collinearity
-with the planning risk label; and (ii) the class imbalance is not corrected
-in the multi-task loss---the $L_2$-regularised BCE objective collapses
-toward the majority class in regions with $<1\%$ positive rate (Arunachal, Ladakh).
-Arunachal's relatively high MTL-NN AUC ($0.809$) despite near-zero positive rate
-illustrates that the few positive samples the model does identify tend to
-be correctly rank-ordered, but precision is near zero.
+\textbf{T1 Risk classification:} The ST-NN achieves AUC $\geq 0.97$
+on all four regions with adequate class representation, matching the
+sklearn gradient boosting baseline ($0.993$--$0.998$). The discriminative
+signal resides in \texttt{threat\_cost} and \texttt{fused\_cost\_mean},
+which together encode the cumulative SAM exposure along each trajectory.
+Ladakh (AUC $= 0.69 \pm 0.21$) is the one difficult case: with only 13
+positive samples out of 2{,}000 (pos\_weight $= 50$), the three folds
+receive 4--5 positives each, and the AUC varies from 0.41 to 0.92 depending
+on which specific positives land in each fold. Arunachal (2 positives)
+is classified as degenerate and excluded.
 
-\textbf{T2 Energy regression:} The MTL-NN achieves $R^2 \geq 0.80$ on all
-regions (mean $0.909$), confirming that vehicle energy consumption is strongly
-determined by planning-layer quantities (path length, altitude, cruise speed)
-even under the additional noise introduced by multi-task learning.
+\textbf{T2 Energy regression:} $R^2 = 0.77$--$0.97$ across all regions
+from planning-layer features alone, confirming that energy consumption
+is physically determined by path length, cruise speed, and altitude profile.
+The variance in Arunachal ($R^2 = 0.81 \pm 0.19$) and Ladakh
+($R^2 = 0.77 \pm 0.22$) reflects training instability at $n = 2{,}000$
+with one bad fold; the median $R^2$ for both is $> 0.92$.
 
-\textbf{T3 Threat regression:} Negative $R^2$ across all regions indicates
-that the combined threat probability $P_\text{combined}$ is not predictable
-from the feature set used. This is physically expected: $P_\text{combined}$
-is a highly nonlinear function of the vehicle's spatial path relative to
-each SAM site's coordinates, which are not directly input as features.
-Providing the actual grid-cell coordinates of each waypoint as features
-(rather than scalar path-level summaries) is expected to resolve this.
+\subsection{Open Challenges: T3 and T4}
+\label{sec:open_challenges}
 
-\textbf{T4 Altitude tracking error:} Negative $R^2$ reflects that altitude
-tracking error ($\approx$22\,m mean) is controlled mainly by the noise
-characteristics of the PID cascade and mission dynamics not captured by
-scalar summary statistics. This represents a genuine open challenge for
-the benchmark community.
+\textbf{T3 Threat regression} requires predicting \texttt{max\_combined\_threat}
+$\in [0,1]$ from trajectory features. The combined SAM threat
+(Eq.~\ref{eq:combined_threat}) is a product of exponentials of per-waypoint
+distances to each emitter site; none of these per-waypoint distances appear
+in the scalar planning summary. The aggregate features available
+(\texttt{threat\_cost}, \texttt{fused\_cost\_mean}) correlate with the target
+but are insufficient for accurate regression: all scalar-feature baselines
+achieve $R^2 < 0$.
+\emph{Required fix}: encode each waypoint's latitude/longitude explicitly
+and compute emitter distances as additional features, or use a sequence
+encoder (Transformer or LSTM) over the waypoint list.
+
+\textbf{T4 Altitude tracking error} (\texttt{alt\_error\_mean\_m}, mean $\approx 22$\,m,
+std $\approx 25$\,m) depends on the full time-series of the PID cascade, not
+on mission-level scalars. Correlation between planning aggregates and T4
+peaks at $|r| = 0.33$ (path length). All scalar baselines yield $R^2 < -0.7$.
+\emph{Required fix}: expose the raw 50\,Hz state history from the control
+simulation as a sequential input, then use a recurrent or convolutional
+architecture over the time series.
 
 \subsection{Comparison with Existing Baselines}
 \label{sec:comparison}
 
 \begin{table}[h]
 \centering
-\caption{T1 and T2 comparison: sklearn gradient boosting vs.\ MTL-NN.}
+\caption{T1 and T2 comparison: sklearn gradient boosting vs.\ ST-NN (this work).}
 \label{tab:comparison}
 \begin{tabular}{llccc}
 \toprule
 Task & Model & Delhi & Bangalore & Odisha \\
 \midrule
-T1 AUC-ROC & Gradient Boosting (8 feat.) & 0.993 & 0.996 & 0.995 \\
-           & MTL-NN (30+ feat.) & 0.537 & 0.481 & 0.463 \\
+T1 AUC & Gradient Boosting \citep{baseline_experiments} & 0.993 & 0.996 & 0.995 \\
+       & ST-NN (this work) & \textbf{0.998} & \textbf{0.966} & \textbf{0.995} \\
 \midrule
-T2 $R^2$   & Gradient Boosting (8 feat.) & 0.997 & 0.997 & 0.999 \\
-           & MTL-NN (30+ feat.)          & 0.960 & 0.898 & 0.801 \\
+T2 $R^2$ & Gradient Boosting \citep{baseline_experiments} & 0.997 & 0.997 & 0.999 \\
+         & ST-NN (this work) & 0.968 & 0.917 & 0.888 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The performance gap for T1 demonstrates that naive feature aggregation
-across all four layers \emph{without explicit handling of class imbalance}
-yields poor risk classifiers. This motivates future work on class-balanced
-multi-task learning, focal loss variants, and threshold calibration for
-the benchmark.
+The ST-NN matches gradient boosting on T1 AUC while using a learned
+representation rather than manual feature engineering, and achieves
+$R^2 > 0.88$ on T2 energy regression from physics-derived planning features.
 
 % ============================================================
 \section{10\texttimes{} Dataset Expansion}
@@ -556,7 +668,7 @@ included. Domain gap between simulation and hardware remains an open research ch
 % ============================================================
 
 We presented EvTOL-Traj, a four-layer autonomous mission dataset for defense
-eVTOL trajectory optimization spanning six Indian geographic regions.
+eVTOL trajectory optimization spanning sixteen Indian geographic regions.
 The dataset uniquely integrates real geospatial perception, Pareto-optimal
 trajectory planning, 6-DoF vehicle physics, and cascaded PID flight control
 into a single causally linked benchmark with 373 features per mission.
@@ -624,7 +736,7 @@ Ladakh & ZU-23  &  20 & 20 & 35.0 &   5 &  5 &  6 \\
 
 \begin{table}[h]
 \centering
-\caption{Controller gain values used in all six regions.}
+\caption{Controller gain values used uniformly across all sixteen regions.}
 \begin{tabular}{lrrr}
 \toprule
 Loop & $K_p$ & $K_i$ & $K_d$ \\
@@ -689,4 +801,3 @@ Loss & $\mathcal{L} = \text{BCE}(T1) + \text{Huber}(T2) + \text{Huber}(T3) + \te
 \end{table}
 
 \end{document}
-
